@@ -7,13 +7,11 @@ export function App() {
   const chat = useChat()
   const [showTerminal, setShowTerminal] = useState(true)
 
-  // Toggle terminal when channel connects
+  // Auto-switch to chat when channel sends SESSION_START
   useEffect(() => {
-    const handler = (data: { port: number; connected: boolean }) => {
-      if (data.connected) setShowTerminal(false)
-    }
-    window.rune.on('rune:channelStatus', handler)
-    return () => window.rune.off('rune:channelStatus', handler)
+    const handler = () => setShowTerminal(false)
+    window.rune.on('rune:sessionStart', handler)
+    return () => window.rune.off('rune:sessionStart', handler)
   }, [])
 
   const toggleTerminal = useCallback(() => setShowTerminal(prev => !prev), [])

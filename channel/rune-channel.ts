@@ -113,6 +113,7 @@ You have a rune_memory tool to save persistent notes across sessions.
 const pendingReplies = new Map<string, (text: string) => void>()
 const sseClients = new Set<http.ServerResponse>()
 let mcpConnected = false
+let sessionStarted = false
 
 function broadcastSSE(data: Record<string, unknown>) {
   const msg = `data: ${JSON.stringify(data)}\n\n`
@@ -245,6 +246,9 @@ async function main() {
         content: `[SESSION_START] Channel connected. Folder: ${FOLDER_PATH || 'none'}${AGENT_ROLE ? `. Role: ${AGENT_ROLE}` : ''}${contextBlock}\n\nUse the rune_memory tool to save important context that should persist across sessions.`,
         meta: { type: 'session_start' },
       },
+    }).then(() => {
+      sessionStarted = true
+      broadcastSSE({ type: 'session_start' })
     }).catch((e: any) => console.error(`[rune-channel] Startup notification failed: ${e.message}`))
   }, 1000)
 
@@ -275,8 +279,11 @@ async function main() {
         'Access-Control-Allow-Origin': '*',
       })
       res.write('data: {"type":"connected"}\n\n')
+      if (sessionStarted) {
+        res.write('data: {"type":"session_start"}\n\n')
+      }
       sseClients.add(res)
-      console.error(`[rune-channel] SSE client connected (total: ${sseClients.size})`)
+      console.error(`[rune-channel] SSE client connected (total: ${sseClients.size}, sessionStarted: ${sessionStarted})`)
       req.on('close', () => {
         sseClients.delete(res)
         console.error(`[rune-channel] SSE client disconnected (total: ${sseClients.size})`)

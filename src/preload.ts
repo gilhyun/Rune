@@ -8,6 +8,7 @@ const onAllowed = [
   'rune:toolActivity',
   'rune:fileRenamed',
   'rune:memoryUpdate',
+  'rune:sessionStart',
   'terminal:output', 'terminal:exit',
 ]
 

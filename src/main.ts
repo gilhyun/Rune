@@ -24,12 +24,20 @@ const ptyProcesses = new Map<string, pty.IPty>()
 let ptyIdCounter = 0
 
 // ── .rune File I/O ───────────────────────────────────
+interface WindowBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 interface RuneFile {
   name: string
   role: string
   icon?: string
   port?: number
   createdAt?: string
+  windowBounds?: WindowBounds
   history?: { role: 'user' | 'assistant'; text: string; ts: number }[]
   memory?: string[]
 }
@@ -153,6 +161,9 @@ function connectSSE(port: number) {
                 const rune = readRuneFile(rw.filePath)
                 win.webContents.send('rune:memoryUpdate', { memory: rune.memory || [] })
               }
+            }
+            if (data.type === 'session_start') {
+              win.webContents.send('rune:sessionStart', { port })
             }
             if (data.type === 'mcp_disconnected') {
               console.log(`[rune] MCP disconnected on :${port}`)
@@ -286,16 +297,18 @@ function createRuneWindow(filePath: string) {
   // Write .mcp.json
   writeMcpJson(folderPath, port, rune.role, filePath)
 
+  const bounds = rune.windowBounds
   const win = new BrowserWindow({
-    width: 600,
-    height: 700,
+    width: bounds?.width || 500,
+    height: bounds?.height || 700,
+    ...(bounds ? { x: bounds.x, y: bounds.y } : {}),
     minWidth: 400,
     minHeight: 500,
     ...(process.platform === 'darwin' ? {
       titleBarStyle: 'hiddenInset' as const,
       trafficLightPosition: { x: 12, y: 12 },
     } : {}),
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#1a1a1a',
     title: `${rune.name} — ${path.basename(folderPath)}`,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -305,6 +318,22 @@ function createRuneWindow(filePath: string) {
   })
 
   let currentFilePath = filePath
+
+  // Save window bounds on move/resize
+  const saveBounds = () => {
+    if (win.isDestroyed()) return
+    const currentBounds = win.getBounds()
+    const currentRune = readRuneFile(currentFilePath)
+    currentRune.windowBounds = currentBounds
+    writeRuneFile(currentFilePath, currentRune)
+  }
+  let boundsTimeout: ReturnType<typeof setTimeout> | null = null
+  const debouncedSaveBounds = () => {
+    if (boundsTimeout) clearTimeout(boundsTimeout)
+    boundsTimeout = setTimeout(saveBounds, 500)
+  }
+  win.on('resize', debouncedSaveBounds)
+  win.on('move', debouncedSaveBounds)
   const rw: RuneWindow = { window: win, filePath, folderPath, port }
   windowRegistry.set(filePath, rw)
   updateDockVisibility()
@@ -377,6 +406,11 @@ function createRuneWindow(filePath: string) {
     disconnectSSE(port)
     const timer = retryTimers.get(port)
     if (timer) { clearInterval(timer); retryTimers.delete(port) }
+    // Kill all pty processes for this window (kills Claude Code + channel)
+    for (const [id, p] of ptyProcesses) {
+      try { p.kill() } catch {}
+      ptyProcesses.delete(id)
+    }
     updateDockVisibility()
   })
 }

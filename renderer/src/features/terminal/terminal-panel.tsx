@@ -57,10 +57,22 @@ export function TerminalPanel({ cwd, autoCommand }: TerminalPanelProps) {
     termRef.current = term
     fitRef.current = fit
 
-    requestAnimationFrame(() => {
-      fit.fit()
-      setReady(true)
-    })
+    // Retry fit until container has real dimensions
+    let retries = 0
+    const tryFit = () => {
+      requestAnimationFrame(() => {
+        const el = containerRef.current
+        if (el && el.clientWidth > 0 && el.clientHeight > 0) {
+          fit.fit()
+          term.focus()
+          setReady(true)
+        } else if (retries < 20) {
+          retries++
+          setTimeout(tryFit, 50)
+        }
+      })
+    }
+    tryFit()
 
     window.rune.invoke('terminal:spawn', { cwd: cwd || undefined }).then(({ id }: { id: string }) => {
       ptyIdRef.current = id

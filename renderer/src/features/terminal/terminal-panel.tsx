@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -9,24 +9,24 @@ interface TerminalPanelProps {
 }
 
 const THEME = {
-  background: '#0d0d0d',
-  foreground: '#d4d4d4',
-  cursor: '#d4d4d4',
-  cursorAccent: '#0d0d0d',
-  selectionBackground: '#264f78',
-  black: '#1e1e1e',
+  background: '#18222d',
+  foreground: '#d4d8de',
+  cursor: '#d4d8de',
+  cursorAccent: '#18222d',
+  selectionBackground: '#2B5278',
+  black: '#1a2634',
   red: '#ef5350',
   green: '#26a69a',
   yellow: '#ffb74d',
   blue: '#42a5f5',
   magenta: '#ab47bc',
   cyan: '#26c6da',
-  white: '#d4d4d4',
-  brightBlack: '#555555',
+  white: '#d4d8de',
+  brightBlack: '#546e7a',
   brightRed: '#ef5350',
   brightGreen: '#26a69a',
   brightYellow: '#ffb74d',
-  brightBlue: '#42a5f5',
+  brightBlue: '#64b5f6',
   brightMagenta: '#ab47bc',
   brightCyan: '#26c6da',
   brightWhite: '#ffffff',
@@ -37,7 +37,7 @@ export function TerminalPanel({ cwd, autoCommand }: TerminalPanelProps) {
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const ptyIdRef = useRef<string | null>(null)
-  const [ready, setReady] = useState(false)
+  const fittedRef = useRef(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -57,25 +57,30 @@ export function TerminalPanel({ cwd, autoCommand }: TerminalPanelProps) {
     termRef.current = term
     fitRef.current = fit
 
-    // Retry fit until container has real dimensions
-    let retries = 0
-    const tryFit = () => {
-      requestAnimationFrame(() => {
-        const el = containerRef.current
-        if (el && el.clientWidth > 0 && el.clientHeight > 0) {
-          fit.fit()
-          term.focus()
-          setReady(true)
-        } else if (retries < 20) {
-          retries++
-          setTimeout(tryFit, 50)
-        }
-      })
+    const doFit = () => {
+      const el = containerRef.current
+      if (!el || el.clientWidth === 0 || el.clientHeight === 0) return
+      fit.fit()
+      if (!fittedRef.current) {
+        fittedRef.current = true
+        term.focus()
+      }
+      if (ptyIdRef.current) {
+        window.rune.send('terminal:resize', {
+          id: ptyIdRef.current,
+          cols: term.cols,
+          rows: term.rows,
+        })
+      }
     }
-    tryFit()
+
+    // ResizeObserver fires on initial observe + any resize
+    const ro = new ResizeObserver(() => requestAnimationFrame(doFit))
+    ro.observe(containerRef.current)
 
     window.rune.invoke('terminal:spawn', { cwd: cwd || undefined }).then(({ id }: { id: string }) => {
       ptyIdRef.current = id
+      // Sync size now that pty is ready
       window.rune.send('terminal:resize', { id, cols: term.cols, rows: term.rows })
 
       const onOutput = (msg: { id: string; data: string }) => {
@@ -109,6 +114,7 @@ export function TerminalPanel({ cwd, autoCommand }: TerminalPanelProps) {
     })
 
     return () => {
+      ro.disconnect()
       if ((term as any).__cleanupOutput) window.rune.off('terminal:output', (term as any).__cleanupOutput)
       if ((term as any).__cleanupExit) window.rune.off('terminal:exit', (term as any).__cleanupExit)
       if (ptyIdRef.current) window.rune.send('terminal:kill', { id: ptyIdRef.current })
@@ -116,31 +122,11 @@ export function TerminalPanel({ cwd, autoCommand }: TerminalPanelProps) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!containerRef.current || !ready) return
-    const ro = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
-        if (fitRef.current && termRef.current) {
-          fitRef.current.fit()
-          if (ptyIdRef.current) {
-            window.rune.send('terminal:resize', {
-              id: ptyIdRef.current,
-              cols: termRef.current.cols,
-              rows: termRef.current.rows,
-            })
-          }
-        }
-      })
-    })
-    ro.observe(containerRef.current)
-    return () => ro.disconnect()
-  }, [ready])
-
   return (
     <div
       ref={containerRef}
       className="h-full w-full"
-      style={{ backgroundColor: '#0d0d0d', padding: '4px 0 0 4px' }}
+      style={{ backgroundColor: '#18222d', padding: '4px 0 0 4px' }}
     />
   )
 }

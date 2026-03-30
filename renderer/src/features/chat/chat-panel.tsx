@@ -74,9 +74,9 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
           style: {
             fontSize: '12px',
             padding: '8px 14px',
-            background: 'oklch(0.205 0 0)',
-            color: 'oklch(0.93 0.005 270)',
-            border: '1px solid oklch(1 0 0 / 10%)',
+            background: 'oklch(0.25 0.065 300)',
+            color: 'oklch(0.93 0.015 300)',
+            border: '1px solid oklch(1 0.03 300 / 10%)',
             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           },
         }}

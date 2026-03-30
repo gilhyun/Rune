@@ -105,35 +105,19 @@ fi
 # Remove trailing slash
 FOLDER="\${FOLDER%/}"
 
-# Ask for agent name
-NAME=$(osascript -e 'display dialog "Agent name:" default answer "assistant" buttons {"Cancel", "Create"} default button "Create"' -e 'text returned of result' 2>/dev/null)
-if [ -z "$NAME" ]; then
-  exit 0
-fi
-
-# Ask for role (optional)
-ROLE=$(osascript -e 'display dialog "Agent role (optional):" default answer "General assistant" buttons {"Skip", "Set"} default button "Set"' -e 'text returned of result' 2>/dev/null)
-if [ -z "$ROLE" ]; then
-  ROLE="General assistant"
-fi
-
-# Create .rune file
+# Create .rune file with folder name as agent name
+NAME=$(basename "$FOLDER")
 FILEPATH="$FOLDER/$NAME.rune"
-cat > "$FILEPATH" << 'RUNEEOF'
+
+cat > "$FILEPATH" << RUNEEOF
 {
-  "name": "AGENT_NAME",
-  "role": "AGENT_ROLE",
+  "name": "$NAME",
+  "role": "General assistant",
   "icon": "bot",
-  "createdAt": "AGENT_DATE",
+  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "history": []
 }
 RUNEEOF
-sed -i '' "s|AGENT_NAME|$NAME|g" "$FILEPATH"
-sed -i '' "s|AGENT_ROLE|$ROLE|g" "$FILEPATH"
-sed -i '' "s|AGENT_DATE|$(date -u +%Y-%m-%dT%H:%M:%SZ)|g" "$FILEPATH"
-
-# Open the .rune file
-"${nodebin}" "${runeBin}" open "$FILEPATH"
 `
   fs.writeFileSync(helperScript, scriptContent, { mode: 0o755 })
 

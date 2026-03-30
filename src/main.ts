@@ -288,8 +288,11 @@ function createRuneWindow(filePath: string) {
   const folderPath = path.dirname(filePath)
   const port = rune.port || allocatePort()
 
-  // Save port back to rune file
-  if (!rune.port) {
+  // Sync name with filename & save port
+  const fileBaseName = path.basename(filePath, '.rune')
+  const nameChanged = rune.name !== fileBaseName
+  if (nameChanged) rune.name = fileBaseName
+  if (!rune.port || nameChanged) {
     rune.port = port
     writeRuneFile(filePath, rune)
   }

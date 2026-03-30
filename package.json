@@ -1,0 +1,44 @@
+{
+  "name": "rune",
+  "version": "0.1.0",
+  "description": "Rune — File-based AI Agent Desktop App",
+  "main": "bootstrap.js",
+  "bin": {
+    "rune": "bin/rune.js"
+  },
+  "scripts": {
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build:main": "esbuild src/main.ts --bundle --platform=node --outfile=dist/main.js --external:electron --external:node-pty && esbuild src/preload.ts --bundle --platform=node --outfile=dist/preload.js --external:electron && esbuild channel/rune-channel.ts --bundle --platform=node --outfile=dist/rune-channel.js",
+    "build:renderer": "cd renderer && npx vite build",
+    "build": "npm run build:main && npm run build:renderer",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron ."
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^28.3.3",
+    "esbuild": "^0.27.4",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.7.0",
+    "electron-builder": "^25.0.0",
+    "vite": "^8.0.1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.577.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0"
+  }
+}

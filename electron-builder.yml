@@ -1,0 +1,61 @@
+appId: com.studio-h.rune
+productName: Rune
+copyright: Copyright © 2026 Studio-H
+
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - bootstrap.js
+  - package.json
+  - "!node_modules/**/*"
+  - node_modules/node-pty/**/*
+  - node_modules/@modelcontextprotocol/**/*
+
+asar: true
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  entitlements: null
+  entitlementsInherit: null
+  hardenedRuntime: false
+  icon: assets/icon.icns
+  fileAssociations:
+    - ext: rune
+      name: Rune Agent File
+      description: Rune AI Agent Configuration
+      role: Editor
+      icon: assets/rune-file.icns
+
+dmg:
+  title: Rune
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+win:
+  target:
+    - nsis
+  fileAssociations:
+    - ext: rune
+      name: Rune Agent File
+      description: Rune AI Agent Configuration
+
+linux:
+  target:
+    - AppImage
+  fileAssociations:
+    - ext: rune
+      name: Rune Agent File
+      mimeType: application/x-rune

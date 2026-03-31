@@ -7,11 +7,13 @@ export function App() {
   const chat = useChat()
   const [showTerminal, setShowTerminal] = useState(true)
 
-  // Auto-switch to chat when channel sends SESSION_START
+  // Auto-switch to chat when MCP channel connects
   useEffect(() => {
-    const handler = () => setShowTerminal(false)
-    window.rune.on('rune:sessionStart', handler)
-    return () => window.rune.off('rune:sessionStart', handler)
+    const handler = (data: { port: number; connected: boolean }) => {
+      if (data.connected) setShowTerminal(false)
+    }
+    window.rune.on('rune:channelStatus', handler)
+    return () => window.rune.off('rune:channelStatus', handler)
   }, [])
 
   const toggleTerminal = useCallback(() => setShowTerminal(prev => !prev), [])

@@ -290,7 +290,7 @@ async function handleChannelMessage(content: string, runeFilePath: string, port:
     const rune = readRuneFile(runeFilePath)
     const folderPath = path.dirname(runeFilePath)
     win.webContents.send('rune:streamError', {
-      error: `Channel :${port} error: ${e.message}\n\nStart the channel:\ncd ${folderPath} && RUNE_CHANNEL_PORT=${port} RUNE_FOLDER_PATH=${folderPath}${rune.role ? ` RUNE_AGENT_ROLE="${rune.role}"` : ''} claude --dangerously-skip-permissions --dangerously-load-development-channels server:rune-channel`,
+      error: `Channel :${port} error: ${e.message}\n\nStart the channel:\ncd ${folderPath} && RUNE_CHANNEL_PORT=${port} RUNE_FOLDER_PATH=${folderPath}${rune.role ? ` RUNE_AGENT_ROLE="${rune.role}"` : ''} claude --permission-mode auto --enable-auto-mode --dangerously-load-development-channels server:rune-channel`,
     })
   }
 }

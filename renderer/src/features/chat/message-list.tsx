@@ -101,7 +101,7 @@ export function MessageList({ messages, isStreaming, streamingDisplayText, port,
                 <p className="text-[11px] text-muted mb-1.5">Run in terminal:</p>
                 <code className="text-[11px] text-accent leading-relaxed break-all">
                   {folderPath ? `cd ${folderPath} && ` : ''}
-                  RUNE_CHANNEL_PORT={port} claude --dangerously-skip-permissions --dangerously-load-development-channels server:rune-channel
+                  RUNE_CHANNEL_PORT={port} claude --permission-mode auto --enable-auto-mode --dangerously-load-development-channels server:rune-channel
                 </code>
               </div>
             </div>

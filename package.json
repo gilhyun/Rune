@@ -2,6 +2,14 @@
   "name": "rune",
   "version": "0.1.0",
   "description": "Rune — File-based AI Agent Desktop App",
+  "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gilhyun/Rune.git"
+  },
+  "homepage": "https://github.com/gilhyun/Rune",
+  "license": "MIT",
+  "author": "gilhyun",
   "main": "bootstrap.js",
   "bin": {
     "rune": "bin/rune.js"

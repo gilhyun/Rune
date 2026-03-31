@@ -138,7 +138,7 @@ You can edit the `role` field to customize your agent at any time.
 ### Setup
 
 ```bash
-git clone https://github.com/studio-h/Rune.git
+git clone https://github.com/gilhyun/Rune.git
 cd Rune
 npm install
 ```

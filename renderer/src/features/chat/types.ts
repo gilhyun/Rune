@@ -1,6 +1,7 @@
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   text: string
+  files?: string[]
 }
 
 export interface RuneInfo {

@@ -118,18 +118,26 @@ export function useChat() {
   })
 
   // Actions
-  const sendMessage = useCallback((content: string) => {
-    if (!runeInfo || state.isStreaming || !content.trim()) return
+  const sendMessage = useCallback((content: string, files?: string[]) => {
+    if (!runeInfo || state.isStreaming || (!content.trim() && (!files || files.length === 0))) return
+
+    // Build the actual content sent to channel: prepend file paths
+    let channelContent = content
+    if (files && files.length > 0) {
+      const fileSection = files.map(f => `[Attached file: ${f}]`).join('\n')
+      channelContent = fileSection + (content ? '\n\n' + content : '')
+    }
+
     setState(prev => ({
       ...prev,
-      messages: [...prev.messages, { role: 'user', text: content }],
+      messages: [...prev.messages, { role: 'user', text: content, files }],
     }))
-    send('rune:sendMessage', { content, port: runeInfo.port })
+    send('rune:sendMessage', { content: channelContent, port: runeInfo.port })
   }, [runeInfo, state.isStreaming, send])
 
   const cancelStream = useCallback(() => {
-    send('rune:cancelStream', {})
-  }, [send])
+    send('rune:cancelStream', { port: runeInfo?.port })
+  }, [send, runeInfo?.port])
 
   const clearHistory = useCallback(() => {
     if (!runeInfo) return

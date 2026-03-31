@@ -44,7 +44,6 @@ contextBridge.exposeInMainWorld('rune', {
   invoke: (channel: string, data?: any): Promise<any> => {
     const allowed = [
       'terminal:spawn',
-      'explorer:listFiles', 'explorer:readFile',
       'rune:createFile',
     ]
     if (allowed.includes(channel)) {

@@ -31,7 +31,6 @@ export function ChatHeader({ name, role, port, showTerminal, onClearHistory, onT
         <span className="text-[13px] font-medium text-foreground">{name}</span>
         <div className={cn('w-2 h-2 rounded-full', dotColor, !connected && 'animate-pulse')} />
         <span className="text-[11px] text-muted tabular-nums">:{port}</span>
-        {role && <span className="text-[11px] text-muted truncate max-w-[200px]">{role}</span>}
       </div>
 
       <div className="flex items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' as any }}>

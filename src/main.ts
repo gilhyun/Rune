@@ -93,6 +93,8 @@ function sanitizeUnicode(s: string): string {
   return s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD')
 }
 
+const activeRequests = new Map<number, http.ClientRequest>()
+
 function sendToChannel(content: string, port: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ type: 'chat', content: sanitizeUnicode(content) })
@@ -106,13 +108,22 @@ function sendToChannel(content: string, port: number): Promise<string> {
     }, (res) => {
       let data = ''
       res.on('data', (chunk: Buffer) => { data += chunk })
-      res.on('end', () => resolve(data))
+      res.on('end', () => { activeRequests.delete(port); resolve(data) })
     })
-    req.on('error', (e) => reject(e))
-    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
+    req.on('error', (e) => { activeRequests.delete(port); reject(e) })
+    req.on('timeout', () => { activeRequests.delete(port); req.destroy(); reject(new Error('timeout')) })
+    activeRequests.set(port, req)
     req.write(body)
     req.end()
   })
+}
+
+function cancelChannelRequest(port: number) {
+  const req = activeRequests.get(port)
+  if (req) {
+    req.destroy()
+    activeRequests.delete(port)
+  }
 }
 
 // ── SSE Push Listener ────────────────────────────────
@@ -305,8 +316,8 @@ function createRuneWindow(filePath: string) {
     width: bounds?.width || 500,
     height: bounds?.height || 700,
     ...(bounds ? { x: bounds.x, y: bounds.y } : {}),
-    minWidth: 400,
-    minHeight: 500,
+    minWidth: 300,
+    minHeight: 400,
     ...(process.platform === 'darwin' ? {
       titleBarStyle: 'hiddenInset' as const,
       trafficLightPosition: { x: 12, y: 12 },
@@ -446,9 +457,16 @@ function setupIPC() {
     await handleChannelMessage(data.content, rw.filePath, data.port)
   })
 
-  // Cancel stream (placeholder)
-  ipcMain.on('rune:cancelStream', () => {
-    // TODO: abort pending HTTP request
+  // Cancel stream
+  ipcMain.on('rune:cancelStream', (_event, data: { port?: number }) => {
+    if (data?.port) {
+      cancelChannelRequest(data.port)
+    } else {
+      // Cancel all active requests
+      for (const port of activeRequests.keys()) {
+        cancelChannelRequest(port)
+      }
+    }
   })
 
   // Connect channel
@@ -529,18 +547,6 @@ function setupIPC() {
     }
   })
 
-  // File tree listing
-  ipcMain.handle('explorer:listFiles', async (_event, data: { folderPath: string }) => {
-    return listFilesRecursive(data.folderPath)
-  })
-
-  // File read
-  ipcMain.handle('explorer:readFile', async (_event, data: { filePath: string }) => {
-    try {
-      return fs.readFileSync(data.filePath, 'utf-8')
-    } catch { return null }
-  })
-
   // Create new .rune file
   ipcMain.handle('rune:createFile', async (_event, data: { folderPath: string; name: string; role?: string }) => {
     const fileName = `${data.name}.rune`
@@ -555,60 +561,6 @@ function setupIPC() {
     writeRuneFile(filePath, runeData)
     return filePath
   })
-}
-
-// ── File Tree Helper ─────────────────────────────────
-interface FileNode {
-  name: string
-  path: string
-  type: 'file' | 'directory'
-  children?: FileNode[]
-}
-
-const IGNORED = new Set(['node_modules', '.git', 'dist', '.DS_Store', '__pycache__', '.next', '.cache'])
-
-function listFilesRecursive(dirPath: string, depth: number = 0): FileNode[] {
-  if (depth > 5) return []
-  try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true })
-    const result: FileNode[] = []
-
-    // Read .gitignore patterns (basic)
-    let gitignorePatterns: string[] = []
-    const gitignorePath = path.join(dirPath, '.gitignore')
-    if (depth === 0 && fs.existsSync(gitignorePath)) {
-      gitignorePatterns = fs.readFileSync(gitignorePath, 'utf-8')
-        .split('\n')
-        .map(l => l.trim())
-        .filter(l => l && !l.startsWith('#'))
-    }
-
-    for (const entry of entries) {
-      if (IGNORED.has(entry.name)) continue
-      if (entry.name.startsWith('.') && entry.name !== '.env') continue
-      if (gitignorePatterns.some(p => entry.name === p || entry.name.startsWith(p.replace('/', '')))) continue
-
-      const fullPath = path.join(dirPath, entry.name)
-      if (entry.isDirectory()) {
-        result.push({
-          name: entry.name,
-          path: fullPath,
-          type: 'directory',
-          children: listFilesRecursive(fullPath, depth + 1),
-        })
-      } else {
-        result.push({ name: entry.name, path: fullPath, type: 'file' })
-      }
-    }
-
-    // Sort: directories first, then alphabetical
-    result.sort((a, b) => {
-      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
-      return a.name.localeCompare(b.name)
-    })
-
-    return result
-  } catch { return [] }
 }
 
 // ── App Lifecycle ────────────────────────────────────

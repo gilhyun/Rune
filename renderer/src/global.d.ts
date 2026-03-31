@@ -12,7 +12,6 @@ type RuneOnChannel =
 
 type RuneInvokeChannel =
   | 'terminal:spawn'
-  | 'explorer:listFiles' | 'explorer:readFile'
   | 'rune:createFile'
 
 interface RuneAPI {

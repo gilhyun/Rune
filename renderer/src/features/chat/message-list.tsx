@@ -134,6 +134,7 @@ export function MessageList({ messages, isStreaming, streamingDisplayText, port,
             key={i}
             role={msg.role}
             text={isStreamingMsg ? streamingDisplayText : msg.text}
+            files={msg.files}
             isStreaming={isStreamingMsg}
           />
         )

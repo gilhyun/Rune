@@ -6,7 +6,7 @@ import { execSync } from 'child_process'
 import * as pty from 'node-pty'
 
 const RUNE_DIR = path.join(require('os').homedir(), '.rune')
-const CHANNEL_PORT = 8800
+const CHANNEL_PORT = 51234
 
 // Ensure rune config dir exists
 if (!fs.existsSync(RUNE_DIR)) fs.mkdirSync(RUNE_DIR, { recursive: true })
@@ -62,11 +62,20 @@ function appendHistory(filePath: string, msg: { role: 'user' | 'assistant'; text
 }
 
 // ── Port Allocation ──────────────────────────────────
-function allocatePort(): number {
+function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const srv = require('net').createServer()
+    srv.once('error', () => resolve(true))
+    srv.once('listening', () => { srv.close(); resolve(false) })
+    srv.listen(port, '127.0.0.1')
+  })
+}
+
+async function allocatePort(): Promise<number> {
   const usedPorts = new Set<number>()
   for (const [, rw] of windowRegistry) usedPorts.add(rw.port)
   let port = CHANNEL_PORT
-  while (usedPorts.has(port)) port++
+  while (usedPorts.has(port) || await isPortInUse(port)) port++
   return port
 }
 
@@ -287,7 +296,7 @@ async function handleChannelMessage(content: string, runeFilePath: string, port:
 }
 
 // ── Window Creation ──────────────────────────────────
-function createRuneWindow(filePath: string) {
+async function createRuneWindow(filePath: string) {
   // If window already exists for this file, focus it
   const existing = windowRegistry.get(filePath)
   if (existing && !existing.window.isDestroyed()) {
@@ -297,13 +306,15 @@ function createRuneWindow(filePath: string) {
 
   const rune = readRuneFile(filePath)
   const folderPath = path.dirname(filePath)
-  const port = rune.port || allocatePort()
+  let port = rune.port
+  if (port && await isPortInUse(port)) port = 0
+  if (!port) port = await allocatePort()
 
   // Sync name with filename & save port
   const fileBaseName = path.basename(filePath, '.rune')
   const nameChanged = rune.name !== fileBaseName
   if (nameChanged) rune.name = fileBaseName
-  if (!rune.port || nameChanged) {
+  if (rune.port !== port || nameChanged) {
     rune.port = port
     writeRuneFile(filePath, rune)
   }

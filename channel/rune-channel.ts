@@ -5,7 +5,7 @@ import * as http from 'http'
 
 import * as fs from 'fs'
 
-const PORT = Number(process.env.RUNE_CHANNEL_PORT || 8800)
+const PORT = Number(process.env.RUNE_CHANNEL_PORT || 51234)
 const FOLDER_PATH = process.env.RUNE_FOLDER_PATH || ''
 const AGENT_ROLE = process.env.RUNE_AGENT_ROLE || ''
 const RUNE_FILE_PATH = process.env.RUNE_FILE_PATH || ''

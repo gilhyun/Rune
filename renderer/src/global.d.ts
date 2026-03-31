@@ -8,6 +8,7 @@ type RuneOnChannel =
   | 'rune:streamEnd' | 'rune:streamError'
   | 'rune:pushMessage' | 'rune:channelStatus'
   | 'rune:toolActivity'
+  | 'rune:permissionNeeded'
   | 'terminal:output' | 'terminal:exit'
 
 type RuneInvokeChannel =

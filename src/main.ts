@@ -517,6 +517,15 @@ function setupIPC() {
     ptyProcesses.set(id, p)
 
     p.onData((data: string) => {
+      // Detect permission prompts from auto mode classifier
+      const stripped = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+      if (/Allow|Deny|permission/i.test(stripped)) {
+        for (const [, rw] of windowRegistry) {
+          if (!rw.window.isDestroyed()) {
+            rw.window.webContents.send('rune:permissionNeeded', { id })
+          }
+        }
+      }
       // Send to ALL windows (terminal will filter by id)
       for (const [, rw] of windowRegistry) {
         if (!rw.window.isDestroyed()) {

@@ -64,3 +64,25 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 .msg-content.streaming.rendered { animation: fadeChunk 0.15s ease-out; }
 @keyframes fadeChunk { from { opacity: 0.7; } to { opacity: 1; } }
+
+/* ── Activity Blocks ──────────────────────────────── */
+.activity-block { border-radius: 8px; border: 1px solid oklch(1 0 0 / 6%); overflow: hidden; animation: activityIn 0.2s ease-out; }
+@keyframes activityIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.activity-header { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 10px; background: none; border: none; cursor: pointer; text-align: left; font-size: 11px; line-height: 1.4; color: oklch(0.65 0 0); transition: background 0.1s; }
+.activity-header:hover { background: oklch(1 0 0 / 3%); }
+.activity-icon { flex-shrink: 0; }
+.activity-label { font-weight: 600; font-size: 11px; white-space: nowrap; }
+.activity-preview { color: oklch(0.5 0 0); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.activity-result-badge { font-size: 9px; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: oklch(0.45 0.12 155 / 15%); color: oklch(0.65 0.15 155); white-space: nowrap; }
+
+.activity-body { padding: 0 10px 8px 28px; font-size: 11px; color: oklch(0.6 0 0); line-height: 1.5; }
+.activity-thinking-body { font-style: italic; white-space: pre-wrap; word-break: break-word; }
+
+.activity-args, .activity-result-content { background: oklch(0.12 0 0); border: 1px solid oklch(1 0 0 / 6%); border-radius: 6px; padding: 6px 10px; font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace; font-size: 10.5px; line-height: 1.5; overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin: 0; color: oklch(0.65 0 0); }
+.activity-result-content { max-height: 200px; overflow-y: auto; word-break: break-word; color: oklch(0.6 0 0); }
+
+.activity-thinking { border-left: 2px solid oklch(0.65 0.15 300); background: oklch(0.65 0.15 300 / 4%); }
+.activity-tool-use { border-left: 2px solid oklch(0.777 0.152 181.912); background: oklch(0.777 0.152 181.912 / 4%); }
+.activity-tool-result { border-left: 2px solid oklch(0.65 0.15 155); background: oklch(0.65 0.15 155 / 4%); }

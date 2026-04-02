@@ -21,6 +21,7 @@ interface RuneWindow {
 
 const windowRegistry = new Map<string, RuneWindow>()
 const ptyProcesses = new Map<string, pty.IPty>()
+const ptyOwnerWindows = new Map<string, Electron.WebContents>()
 let ptyIdCounter = 0
 
 // ── .rune File I/O ───────────────────────────────────
@@ -113,14 +114,12 @@ function sendToChannel(content: string, port: number): Promise<string> {
       path: '/',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-      timeout: 180_000,
     }, (res) => {
       let data = ''
       res.on('data', (chunk: Buffer) => { data += chunk })
       res.on('end', () => { activeRequests.delete(port); resolve(data) })
     })
     req.on('error', (e) => { activeRequests.delete(port); reject(e) })
-    req.on('timeout', () => { activeRequests.delete(port); req.destroy(); reject(new Error('timeout')) })
     activeRequests.set(port, req)
     req.write(body)
     req.end()
@@ -138,6 +137,7 @@ function cancelChannelRequest(port: number) {
 // ── SSE Push Listener ────────────────────────────────
 const sseConnections = new Map<number, http.IncomingMessage>()
 const retryTimers = new Map<number, ReturnType<typeof setInterval>>()
+const sseReconnectTimers = new Map<number, ReturnType<typeof setTimeout>>()
 
 function getWindowForPort(port: number): BrowserWindow | null {
   for (const [, rw] of windowRegistry) {
@@ -174,6 +174,9 @@ function connectSSE(port: number) {
             if (data.type === 'tool_start' || data.type === 'tool_end') {
               win.webContents.send('rune:toolActivity', { port, type: data.type, tool: data.tool, args: data.args, preview: data.preview })
             }
+            if (data.type === 'activity') {
+              win.webContents.send('rune:activity', { port, activityType: data.activityType, content: data.content, tool: data.tool, args: data.args })
+            }
             if (data.type === 'memory_update') {
               // Channel updated memory in .rune file — reload and notify renderer
               const rw = [...windowRegistry.values()].find(r => r.port === port)
@@ -198,15 +201,18 @@ function connectSSE(port: number) {
     res.on('end', () => {
       sseConnections.delete(port)
       console.log(`[rune] SSE disconnected from :${port}, reconnecting in 3s...`)
-      setTimeout(() => connectSSE(port), 3000)
+      const t = setTimeout(() => connectSSE(port), 3000)
+      sseReconnectTimers.set(port, t)
     })
     res.on('error', () => {
       sseConnections.delete(port)
-      setTimeout(() => connectSSE(port), 3000)
+      const t = setTimeout(() => connectSSE(port), 3000)
+      sseReconnectTimers.set(port, t)
     })
   })
   req.on('error', () => {
-    setTimeout(() => connectSSE(port), 5000)
+    const t = setTimeout(() => connectSSE(port), 5000)
+    sseReconnectTimers.set(port, t)
   })
 }
 
@@ -215,6 +221,11 @@ function disconnectSSE(port: number) {
   if (res) {
     res.destroy()
     sseConnections.delete(port)
+  }
+  const reconnectTimer = sseReconnectTimers.get(port)
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    sseReconnectTimers.delete(port)
   }
 }
 
@@ -433,8 +444,10 @@ async function createRuneWindow(filePath: string) {
     if (timer) { clearInterval(timer); retryTimers.delete(port) }
     // Kill all pty processes for this window (kills Claude Code + channel)
     for (const [id, p] of ptyProcesses) {
+      try { process.kill(p.pid, 'SIGTERM') } catch {}
       try { p.kill() } catch {}
       ptyProcesses.delete(id)
+      ptyOwnerWindows.delete(id)
     }
     updateDockVisibility()
   })
@@ -494,9 +507,27 @@ function setupIPC() {
     writeRuneFile(rw.filePath, rune)
   })
 
+  // Permission respond — send keystrokes to Claude Code's TUI prompt
+  ipcMain.on('rune:permissionRespond', (_event, data: { ptyId: string; allow: boolean; response?: string }) => {
+    const p = ptyProcesses.get(data.ptyId)
+    if (!p) return
+    const resp = data.response || (data.allow ? 'allow' : 'deny')
+    if (resp === 'allow') {
+      // Enter = select highlighted option 1 (Yes)
+      p.write('\r')
+    } else if (resp === 'always') {
+      // Down arrow + Enter = select option 2 (Yes, and don't ask again)
+      p.write('\x1b[B\r')
+    } else {
+      // Down + Down + Enter = select option 3 (No)
+      p.write('\x1b[B\x1b[B\r')
+    }
+  })
+
   // Terminal spawn
   ipcMain.handle('terminal:spawn', (_event, data: { cwd?: string }) => {
     const id = `pty-${++ptyIdCounter}`
+    const senderContents = _event.sender
     const shell = process.env.SHELL || '/bin/zsh'
     const env = { ...process.env }
     delete env.ELECTRON_RUN_AS_NODE
@@ -515,32 +546,62 @@ function setupIPC() {
     }
 
     ptyProcesses.set(id, p)
+    ptyOwnerWindows.set(id, senderContents)
+
+    // Helper to send IPC only to the owning window
+    const sendToOwner = (channel: string, payload: any) => {
+      const owner = ptyOwnerWindows.get(id)
+      if (owner && !owner.isDestroyed()) {
+        owner.send(channel, payload)
+      }
+    }
+
+    // Buffer recent terminal output to extract permission prompt context
+    let recentOutput = ''
+    let permissionDetected = false
+    let permissionDebounce: ReturnType<typeof setTimeout> | null = null
+
+    // Comprehensive ANSI/escape sequence stripper
+    const stripAnsi = (s: string) => s
+      .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')   // CSI sequences (incl. ?25l etc)
+      .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '') // OSC sequences
+      .replace(/\x1b[()][A-Z0-9]/g, '')           // Character set
+      .replace(/\x1b[>=<]/g, '')                   // Mode set
+      .replace(/\x1b\[\?[0-9;]*[a-z]/g, '')       // Private mode sequences
+      .replace(/\r/g, '')
 
     p.onData((data: string) => {
-      // Detect permission prompts from auto mode classifier
-      const stripped = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
-      if (/Allow|Deny|permission/i.test(stripped)) {
-        for (const [, rw] of windowRegistry) {
-          if (!rw.window.isDestroyed()) {
-            rw.window.webContents.send('rune:permissionNeeded', { id })
-          }
-        }
+      // Accumulate recent output for context extraction
+      recentOutput += data
+      if (recentOutput.length > 8000) recentOutput = recentOutput.slice(-6000)
+
+      // Detect ALL Claude Code permission prompts — check accumulated buffer
+      const bufStripped = stripAnsi(recentOutput)
+      // Match: "Do you want to proceed?", "Do you want to make this edit?",
+      //        "Do you want to run this command?", "Do you want to read..?", etc.
+      const permissionMatch = /Do you want to [^\n]*\?/i.test(bufStripped)
+      if (permissionMatch && !permissionDetected) {
+        permissionDetected = true
+        // Debounce to let full prompt text (including options) arrive
+        if (permissionDebounce) clearTimeout(permissionDebounce)
+        permissionDebounce = setTimeout(() => {
+          const contextStripped = stripAnsi(recentOutput)
+          const lines = contextStripped.split('\n').filter(l => l.trim()).slice(-25)
+          const promptContext = lines.join('\n')
+          console.log(`[rune] Permission prompt detected, sending to renderer (${lines.length} lines)`)
+          sendToOwner('rune:permissionNeeded', { id, context: promptContext })
+          // Clear buffer after detection so same prompt isn't re-detected
+          recentOutput = ''
+          setTimeout(() => { permissionDetected = false }, 1000)
+        }, 500)
       }
-      // Send to ALL windows (terminal will filter by id)
-      for (const [, rw] of windowRegistry) {
-        if (!rw.window.isDestroyed()) {
-          rw.window.webContents.send('terminal:output', { id, data })
-        }
-      }
+      sendToOwner('terminal:output', { id, data })
     })
 
     p.onExit(({ exitCode }) => {
-      for (const [, rw] of windowRegistry) {
-        if (!rw.window.isDestroyed()) {
-          rw.window.webContents.send('terminal:exit', { id, exitCode })
-        }
-      }
+      sendToOwner('terminal:exit', { id, exitCode })
       ptyProcesses.delete(id)
+      ptyOwnerWindows.delete(id)
     })
 
     return { id }
@@ -564,6 +625,7 @@ function setupIPC() {
     if (p) {
       p.kill()
       ptyProcesses.delete(data.id)
+      ptyOwnerWindows.delete(data.id)
     }
   })
 
@@ -632,6 +694,29 @@ function updateDockVisibility() {
     app.dock?.hide()
   }
 }
+
+// ── Cleanup on quit ─────────────────────────────────
+function cleanupAll() {
+  // Kill all pty processes (sends SIGTERM for proper cleanup)
+  for (const [id, p] of ptyProcesses) {
+    try { process.kill(p.pid, 'SIGTERM') } catch {}
+    try { p.kill() } catch {}
+    ptyProcesses.delete(id)
+    ptyOwnerWindows.delete(id)
+  }
+  // Disconnect all SSE connections and cancel timers
+  for (const port of sseConnections.keys()) disconnectSSE(port)
+  for (const [port, timer] of retryTimers) {
+    clearInterval(timer)
+    retryTimers.delete(port)
+  }
+  // Cancel all active HTTP requests
+  for (const port of activeRequests.keys()) cancelChannelRequest(port)
+}
+
+app.on('before-quit', () => {
+  cleanupAll()
+})
 
 app.on('window-all-closed', () => {
   // Quit when all windows close. AppleScript launcher starts fresh on next double-click.

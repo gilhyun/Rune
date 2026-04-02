@@ -6,9 +6,11 @@ const onAllowed = [
   'rune:streamError', 'rune:pushMessage',
   'rune:channelStatus',
   'rune:toolActivity',
+  'rune:activity',
   'rune:fileRenamed',
   'rune:memoryUpdate',
   'rune:sessionStart',
+  'rune:permissionNeeded',
   'terminal:output', 'terminal:exit',
 ]
 
@@ -18,6 +20,7 @@ contextBridge.exposeInMainWorld('rune', {
   send: (channel: string, data?: any) => {
     const allowed = [
       'rune:sendMessage', 'rune:cancelStream', 'rune:connectChannel', 'rune:clearHistory',
+      'rune:permissionRespond',
       'terminal:input', 'terminal:resize', 'terminal:kill',
     ]
     if (allowed.includes(channel)) {

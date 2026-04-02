@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useIPCOn, useIPCSend } from '@/hooks/use-ipc'
-import type { ChatState, ChatMessage, RuneInfo } from './types'
+import type { ChatState, ChatMessage, ContentBlock, RuneInfo } from './types'
 
 export function useChat() {
   const [runeInfo, setRuneInfo] = useState<RuneInfo | null>(null)
@@ -9,6 +9,7 @@ export function useChat() {
     isStreaming: false,
     shownText: '',
     typeQueue: '',
+    activityBlocks: [],
   })
   const typeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const send = useIPCSend()
@@ -61,9 +62,13 @@ export function useChat() {
       const fullText = prev.shownText + prev.typeQueue
       const messages = [...prev.messages]
       if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
-        messages[messages.length - 1] = { role: 'assistant', text: fullText }
+        messages[messages.length - 1] = {
+          role: 'assistant',
+          text: fullText,
+          blocks: prev.activityBlocks.length > 0 ? [...prev.activityBlocks] : undefined,
+        }
       }
-      return { ...prev, messages, isStreaming: false, shownText: '', typeQueue: '' }
+      return { ...prev, messages, isStreaming: false, shownText: '', typeQueue: '', activityBlocks: [] }
     })
   }, [])
 
@@ -74,7 +79,22 @@ export function useChat() {
       isStreaming: true,
       shownText: '',
       typeQueue: '',
+      activityBlocks: [],
       messages: [...prev.messages, { role: 'assistant', text: '' }],
+    }))
+  })
+
+  useIPCOn('rune:activity', (data: { port: number; activityType: string; content?: string; tool?: string; args?: Record<string, unknown> }) => {
+    const block: ContentBlock = {
+      type: data.activityType as ContentBlock['type'],
+      content: data.content,
+      tool: data.tool,
+      args: data.args,
+      ts: Date.now(),
+    }
+    setState(prev => ({
+      ...prev,
+      activityBlocks: [...prev.activityBlocks, block],
     }))
   })
 
@@ -119,7 +139,13 @@ export function useChat() {
 
   // Actions
   const sendMessage = useCallback((content: string, files?: string[]) => {
-    if (!runeInfo || state.isStreaming || (!content.trim() && (!files || files.length === 0))) return
+    if (!runeInfo || (!content.trim() && (!files || files.length === 0))) return
+
+    // If streaming, cancel current response and finalize partial text
+    if (state.isStreaming) {
+      send('rune:cancelStream', { port: runeInfo.port })
+      finishStream()
+    }
 
     // Build the actual content sent to channel: prepend file paths
     let channelContent = content
@@ -133,7 +159,7 @@ export function useChat() {
       messages: [...prev.messages, { role: 'user', text: content, files }],
     }))
     send('rune:sendMessage', { content: channelContent, port: runeInfo.port })
-  }, [runeInfo, state.isStreaming, send])
+  }, [runeInfo, state.isStreaming, send, finishStream])
 
   const cancelStream = useCallback(() => {
     send('rune:cancelStream', { port: runeInfo?.port })
@@ -169,6 +195,7 @@ export function useChat() {
     messages: state.messages,
     isStreaming: state.isStreaming,
     streamingDisplayText: getDisplayText(),
+    streamingActivities: state.activityBlocks,
     sendMessage,
     cancelStream,
     clearHistory,

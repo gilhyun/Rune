@@ -1,8 +1,9 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { Sparkles, Zap, Loader2 } from 'lucide-react'
 import { MessageBubble } from './message-bubble'
+import { ActivityBlock } from './activity-block'
 import { useIPCOn } from '@/hooks/use-ipc'
-import type { ChatMessage } from './types'
+import type { ChatMessage, ContentBlock } from './types'
 
 interface ToolActivity {
   tool: string
@@ -15,12 +16,13 @@ interface MessageListProps {
   messages: ChatMessage[]
   isStreaming: boolean
   streamingDisplayText: string
+  streamingActivities?: ContentBlock[]
   port?: number
   folderPath?: string
   visible?: boolean
 }
 
-export function MessageList({ messages, isStreaming, streamingDisplayText, port, folderPath, visible }: MessageListProps) {
+export function MessageList({ messages, isStreaming, streamingDisplayText, streamingActivities, port, folderPath, visible }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
@@ -67,7 +69,7 @@ export function MessageList({ messages, isStreaming, streamingDisplayText, port,
     requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior: 'instant' })
     })
-  }, [messages.length, streamingDisplayText])
+  }, [messages.length, streamingDisplayText, streamingActivities?.length])
 
   useEffect(() => {
     shouldAutoScrollRef.current = true
@@ -130,13 +132,30 @@ export function MessageList({ messages, isStreaming, streamingDisplayText, port,
       {messages.map((msg, i) => {
         const isStreamingMsg = isStreaming && msg.role === 'assistant' && i === messages.length - 1
         return (
-          <MessageBubble
-            key={i}
-            role={msg.role}
-            text={isStreamingMsg ? streamingDisplayText : msg.text}
-            files={msg.files}
-            isStreaming={isStreamingMsg}
-          />
+          <div key={i} className="flex flex-col gap-1.5">
+            {/* Show activity blocks for completed messages */}
+            {!isStreamingMsg && msg.blocks && msg.blocks.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {msg.blocks.map((block, bi) => (
+                  <ActivityBlock key={`${block.type}-${block.ts}-${bi}`} block={block} />
+                ))}
+              </div>
+            )}
+            {/* Show streaming activity blocks */}
+            {isStreamingMsg && streamingActivities && streamingActivities.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {streamingActivities.map((block, bi) => (
+                  <ActivityBlock key={`${block.type}-${block.ts}-${bi}`} block={block} />
+                ))}
+              </div>
+            )}
+            <MessageBubble
+              role={msg.role}
+              text={isStreamingMsg ? streamingDisplayText : msg.text}
+              files={msg.files}
+              isStreaming={isStreamingMsg}
+            />
+          </div>
         )
       })}
       {toolActivities.length > 0 && (

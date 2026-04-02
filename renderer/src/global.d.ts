@@ -1,5 +1,6 @@
 type RuneSendChannel =
   | 'rune:sendMessage' | 'rune:cancelStream' | 'rune:connectChannel' | 'rune:clearHistory'
+  | 'rune:permissionRespond'
   | 'terminal:input' | 'terminal:resize' | 'terminal:kill'
 
 type RuneOnChannel =
@@ -8,6 +9,7 @@ type RuneOnChannel =
   | 'rune:streamEnd' | 'rune:streamError'
   | 'rune:pushMessage' | 'rune:channelStatus'
   | 'rune:toolActivity'
+  | 'rune:activity'
   | 'rune:permissionNeeded'
   | 'terminal:output' | 'terminal:exit'
 

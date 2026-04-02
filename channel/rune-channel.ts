@@ -94,6 +94,15 @@ You are connected to a desktop app UI. The user CANNOT see your regular text out
 - If you need to do multi-step work (fetch data, analyze, etc.), do all the work FIRST, then send ONE comprehensive rune_reply at the end.
 - Even error messages and status updates must go through rune_reply.
 
+## CRITICAL: Report ALL activities via rune_activity
+The user wants to see EVERYTHING you do — thinking, tool calls, and results — in real-time, just like the Claude Code VSCode plugin.
+- BEFORE you start working on a request, call rune_activity with type="thinking" and share your plan/reasoning.
+- BEFORE each tool call (Read, Edit, Bash, Write, Grep, Glob, etc.), call rune_activity with type="tool_use", tool name, and key args.
+- AFTER each tool call completes, call rune_activity with type="tool_result", tool name, and a brief summary of the result.
+- This makes your work transparent. Without rune_activity calls, the user sees a blank screen until rune_reply.
+- Keep thinking text concise but informative. For tool results, summarize key findings (1-2 sentences).
+- You MUST call rune_activity for EVERY tool you use. Do NOT skip any.
+
 ## CRITICAL: Actions, Not Words
 When the user asks you to do something, ACTUALLY DO IT. Never just describe what you would do.
 - Read files, write code, run commands — take action.
@@ -139,6 +148,27 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'rune_activity',
+      description: 'Report your current activity to the Rune chat UI in real-time. Call this BEFORE and AFTER each action so the user can see what you are doing. This makes your work visible — without it, the user sees nothing until rune_reply.',
+      inputSchema: {
+        type: 'object' as const,
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['thinking', 'tool_use', 'tool_result'],
+            description: 'thinking: share your reasoning/plan. tool_use: report a tool you are about to call. tool_result: report the result of a tool call.',
+          },
+          content: { type: 'string', description: 'For thinking: your reasoning text. For tool_result: a brief summary of what happened.' },
+          tool: { type: 'string', description: 'Tool name (e.g. Read, Edit, Bash, Grep, Write). Required for tool_use and tool_result.' },
+          args: {
+            type: 'object',
+            description: 'Key arguments for the tool call (e.g. {file_path: "/foo.ts"} or {command: "npm test"}). For tool_use only.',
+          },
+        },
+        required: ['type'],
+      },
+    },
+    {
       name: 'rune_memory',
       description: 'Save, list, or delete persistent memory notes in the .rune file. Use this to remember important context across sessions — user preferences, project decisions, key findings, etc. Memory persists even when the session ends.',
       inputSchema: {
@@ -158,7 +188,7 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
   const toolName = req.params.name
 
   // Broadcast tool_start for non-internal tools
-  if (toolName !== 'rune_reply' && toolName !== 'rune_memory') {
+  if (toolName !== 'rune_reply' && toolName !== 'rune_memory' && toolName !== 'rune_activity') {
     const argsSummary: Record<string, unknown> = {}
     const rawArgs = req.params.arguments as Record<string, unknown> | undefined
     if (rawArgs) {
@@ -168,6 +198,15 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
     }
     broadcastSSE({ type: 'tool_start', tool: toolName, args: argsSummary })
+  }
+
+  // rune_activity tool — real-time activity reporting
+  if (req.params.name === 'rune_activity') {
+    const { type: activityType, content, tool, args } = req.params.arguments as {
+      type: string; content?: string; tool?: string; args?: Record<string, unknown>
+    }
+    broadcastSSE({ type: 'activity', activityType, content, tool, args })
+    return { content: [{ type: 'text' as const, text: 'ok' }] }
   }
 
   if (req.params.name === 'rune_reply') {
@@ -324,12 +363,6 @@ async function main() {
       if (type === 'chat') {
         const reply = await new Promise<string>((resolve) => {
           pendingReplies.set(id, resolve)
-          setTimeout(() => {
-            if (pendingReplies.has(id)) {
-              pendingReplies.delete(id)
-              resolve(JSON.stringify({ error: 'timeout' }))
-            }
-          }, 180_000)
         })
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' })
         res.end(reply)
@@ -348,6 +381,16 @@ async function main() {
   server.listen(PORT, '127.0.0.1', () => {
     console.error(`[rune-channel] listening on http://127.0.0.1:${PORT}`)
   })
+
+  // Graceful shutdown: close HTTP server to release port
+  const shutdown = () => {
+    console.error(`[rune-channel] shutting down, releasing port ${PORT}`)
+    server.close()
+    process.exit(0)
+  }
+  process.on('SIGTERM', shutdown)
+  process.on('SIGINT', shutdown)
+  process.on('SIGHUP', shutdown)
 }
 
 main()

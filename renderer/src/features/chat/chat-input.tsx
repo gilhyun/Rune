@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react'
+import { useRef, useCallback, useState, type DragEvent } from 'react'
 import { ArrowUp, Square, Paperclip, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -12,6 +12,7 @@ export function ChatInput({ isStreaming, onSend, onCancel }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const handleSend = useCallback(() => {
     const content = textareaRef.current?.value.trim()
@@ -25,9 +26,12 @@ export function ChatInput({ isStreaming, onSend, onCancel }: ChatInputProps) {
   }, [onSend, attachedFiles])
 
   const handleSendOrCancel = useCallback(() => {
-    if (isStreaming) onCancel()
+    const hasContent = textareaRef.current?.value.trim() || attachedFiles.length > 0
+    // If streaming but user typed something, send it (will auto-cancel current stream)
+    // If streaming with empty input, just cancel
+    if (isStreaming && !hasContent) onCancel()
     else handleSend()
-  }, [isStreaming, onCancel, handleSend])
+  }, [isStreaming, onCancel, handleSend, attachedFiles.length])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -67,12 +71,56 @@ export function ChatInput({ isStreaming, onSend, onCancel }: ChatInputProps) {
     setAttachedFiles(prev => prev.filter((_, i) => i !== index))
   }, [])
 
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Only set false if leaving the container (not entering a child)
+    if (e.currentTarget && !e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }, [])
+
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+    const files = e.dataTransfer?.files
+    if (!files || files.length === 0) return
+    const paths: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i] as any
+      if (f.path) paths.push(f.path)
+    }
+    if (paths.length > 0) {
+      setAttachedFiles(prev => [...prev, ...paths])
+    }
+  }, [])
+
   const getFileName = (filePath: string) => {
     return filePath.split('/').pop() || filePath
   }
 
   return (
-    <div className="flex flex-col gap-2 px-4 py-3.5 border-t border-border shrink-0">
+    <div
+      className={cn(
+        'flex flex-col gap-2 px-4 py-3.5 border-t shrink-0 relative transition-colors',
+        isDragOver ? 'border-accent bg-accent/5' : 'border-border'
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragOver && (
+        <div className="absolute inset-0 flex items-center justify-center bg-accent/10 border-2 border-dashed border-accent rounded-lg z-10 pointer-events-none">
+          <span className="text-[12px] font-medium text-accent">Drop files here</span>
+        </div>
+      )}
       {attachedFiles.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {attachedFiles.map((file, i) => (
@@ -112,6 +160,7 @@ export function ChatInput({ isStreaming, onSend, onCancel }: ChatInputProps) {
           className="flex-1 rounded-xl border border-input bg-transparent px-3.5 py-2.5 text-[13px] text-foreground resize-none outline-none min-h-[42px] max-h-[120px] leading-[1.5] transition-colors placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-0"
           placeholder="Type a message..."
           rows={1}
+          spellCheck={false}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
         />

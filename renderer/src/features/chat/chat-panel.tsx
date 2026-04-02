@@ -50,7 +50,7 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
   }, [])
 
   const channelCommand = chat.runeInfo
-    ? `RUNE_CHANNEL_PORT=${chat.runeInfo.port} RUNE_FOLDER_PATH=${chat.runeInfo.folderPath} claude --permission-mode auto --enable-auto-mode --channels plugin:rune-channel@gilhyun/Rune`
+    ? `RUNE_CHANNEL_PORT=${chat.runeInfo.port} RUNE_FOLDER_PATH=${chat.runeInfo.folderPath} claude --permission-mode auto --enable-auto-mode --channels plugin:rune-channel@rune`
     : ''
 
   return (

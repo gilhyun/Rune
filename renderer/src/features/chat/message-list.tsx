@@ -103,7 +103,7 @@ export function MessageList({ messages, isStreaming, streamingDisplayText, strea
                 <p className="text-[11px] text-muted mb-1.5">Run in terminal:</p>
                 <code className="text-[11px] text-accent leading-relaxed break-all">
                   {folderPath ? `cd ${folderPath} && ` : ''}
-                  RUNE_CHANNEL_PORT={port} claude --permission-mode auto --enable-auto-mode --channels plugin:rune-channel@gilhyun/Rune
+                  RUNE_CHANNEL_PORT={port} claude --permission-mode auto --enable-auto-mode --channels plugin:rune-channel@rune
                 </code>
               </div>
             </div>

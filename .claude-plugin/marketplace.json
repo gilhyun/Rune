@@ -1,9 +1,17 @@
 {
-  "name": "gilhyun/Rune",
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "rune",
+  "description": "Rune — File-based AI Agent Desktop App plugins",
+  "owner": {
+    "name": "gilhyun",
+    "email": "gilhyun@github.com"
+  },
   "plugins": [
     {
       "name": "rune-channel",
-      "path": "."
+      "description": "Rune desktop app channel for Claude Code",
+      "source": "./",
+      "category": "development"
     }
   ]
 }

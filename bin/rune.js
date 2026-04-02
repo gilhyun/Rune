@@ -462,26 +462,86 @@ fi
 function installChannelPlugin() {
   console.log('  Installing Claude Code channel plugin...')
 
-  // Check if claude CLI is available
-  let claudePath
-  try {
-    claudePath = execSync('which claude', { encoding: 'utf-8' }).trim()
-  } catch {
-    console.log('  ⚠️  Claude Code CLI not found. Install it first, then run:')
-    console.log('     claude /plugin install rune-channel@gilhyun/Rune')
+  const projectRoot = path.resolve(__dirname, '..')
+  const claudePluginsDir = path.join(os.homedir(), '.claude', 'plugins')
+  const installedFile = path.join(claudePluginsDir, 'installed_plugins.json')
+  const marketplacesFile = path.join(claudePluginsDir, 'known_marketplaces.json')
+
+  // Check if Claude Code plugins dir exists
+  if (!fs.existsSync(claudePluginsDir)) {
+    console.log('  ⚠️  Claude Code not found (~/.claude/plugins missing). Install Claude Code first.')
     return
   }
 
   try {
-    execSync(`${claudePath} plugin install rune-channel@gilhyun/Rune`, {
-      stdio: 'pipe',
-      timeout: 30000,
-    })
+    // 1. Register marketplace
+    const marketplaceName = 'rune'
+    let marketplaces = {}
+    if (fs.existsSync(marketplacesFile)) {
+      try { marketplaces = JSON.parse(fs.readFileSync(marketplacesFile, 'utf-8')) } catch {}
+    }
+    if (!marketplaces[marketplaceName]) {
+      marketplaces[marketplaceName] = {
+        source: { source: 'github', repo: 'gilhyun/Rune' },
+        installLocation: path.join(claudePluginsDir, 'marketplaces', marketplaceName),
+        lastUpdated: new Date().toISOString(),
+      }
+      fs.writeFileSync(marketplacesFile, JSON.stringify(marketplaces, null, 2))
+    }
+
+    // 2. Copy plugin to cache
+    const pluginJson = JSON.parse(fs.readFileSync(path.join(projectRoot, '.claude-plugin', 'plugin.json'), 'utf-8'))
+    const version = pluginJson.version || '0.1.0'
+    const cacheDir = path.join(claudePluginsDir, 'cache', marketplaceName, 'rune-channel', version)
+    ensureDir(cacheDir)
+
+    // Copy essential files
+    const filesToCopy = ['.claude-plugin', 'dist/rune-channel.js', 'package.json', 'LICENSE']
+    for (const f of filesToCopy) {
+      const src = path.join(projectRoot, f)
+      const dst = path.join(cacheDir, f)
+      if (!fs.existsSync(src)) continue
+      const stat = fs.statSync(src)
+      if (stat.isDirectory()) {
+        ensureDir(dst)
+        for (const child of fs.readdirSync(src)) {
+          fs.copyFileSync(path.join(src, child), path.join(dst, child))
+        }
+      } else {
+        ensureDir(path.dirname(dst))
+        fs.copyFileSync(src, dst)
+      }
+    }
+
+    // 3. Register in installed_plugins.json
+    let installed = { version: 2, plugins: {} }
+    if (fs.existsSync(installedFile)) {
+      try { installed = JSON.parse(fs.readFileSync(installedFile, 'utf-8')) } catch {}
+    }
+
+    const pluginKey = `rune-channel@${marketplaceName}`
+    const entries = installed.plugins[pluginKey] || []
+    // Add/update user-scope entry
+    const userEntry = entries.find(e => e.scope === 'user')
+    const newEntry = {
+      scope: 'user',
+      installPath: cacheDir,
+      version,
+      installedAt: userEntry?.installedAt || new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+    }
+    if (userEntry) {
+      Object.assign(userEntry, newEntry)
+    } else {
+      entries.push(newEntry)
+    }
+    installed.plugins[pluginKey] = entries
+    fs.writeFileSync(installedFile, JSON.stringify(installed, null, 2))
+
     console.log('  ✅ Channel plugin installed')
   } catch (e) {
-    // Plugin install may not support non-interactive mode yet
-    console.log('  ⚠️  Auto-install failed. Run manually inside Claude Code:')
-    console.log('     /plugin install rune-channel@gilhyun/Rune')
+    console.log(`  ⚠️  Plugin install failed: ${e.message}`)
+    console.log('     Run manually inside Claude Code: /plugin install rune-channel@rune')
   }
 }
 

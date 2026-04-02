@@ -301,7 +301,7 @@ async function handleChannelMessage(content: string, runeFilePath: string, port:
     const rune = readRuneFile(runeFilePath)
     const folderPath = path.dirname(runeFilePath)
     win.webContents.send('rune:streamError', {
-      error: `Channel :${port} error: ${e.message}\n\nStart the channel:\ncd ${folderPath} && RUNE_CHANNEL_PORT=${port} RUNE_FOLDER_PATH=${folderPath}${rune.role ? ` RUNE_AGENT_ROLE="${rune.role}"` : ''} claude --permission-mode auto --enable-auto-mode --dangerously-load-development-channels server:rune-channel`,
+      error: `Channel :${port} error: ${e.message}\n\nStart the channel:\ncd ${folderPath} && RUNE_CHANNEL_PORT=${port} RUNE_FOLDER_PATH=${folderPath}${rune.role ? ` RUNE_AGENT_ROLE="${rune.role}"` : ''} claude --permission-mode auto --enable-auto-mode --channels plugin:rune-channel@gilhyun/Rune`,
     })
   }
 }
@@ -531,6 +531,18 @@ function setupIPC() {
     const shell = process.env.SHELL || '/bin/zsh'
     const env = { ...process.env }
     delete env.ELECTRON_RUN_AS_NODE
+
+    // Inject RUNE_* env vars so the channel plugin inherits them
+    const rw = [...windowRegistry.values()].find(r =>
+      r.window.webContents === senderContents
+    )
+    if (rw) {
+      env.RUNE_CHANNEL_PORT = String(rw.port)
+      env.RUNE_FOLDER_PATH = rw.folderPath
+      env.RUNE_FILE_PATH = rw.filePath
+      const rune = readRuneFile(rw.filePath)
+      if (rune.role) env.RUNE_AGENT_ROLE = rune.role
+    }
     let p: any
     try {
       p = pty.spawn(shell, [], {

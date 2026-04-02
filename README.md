@@ -213,7 +213,7 @@ The Claude Code CLI channel isn't running. It should start automatically via the
 
 ```bash
 cd /your/project/folder
-RUNE_CHANNEL_PORT=<port> claude --dangerously-skip-permissions --dangerously-load-development-channels server:rune-channel
+RUNE_CHANNEL_PORT=<port> claude --permission-mode auto --enable-auto-mode --channels plugin:rune-channel@gilhyun/Rune
 ```
 
 The port number is shown in the chat header.

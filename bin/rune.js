@@ -60,6 +60,9 @@ function install() {
     registerFileAssociation(projectRoot)
   }
 
+  // 5. Install Claude Code channel plugin
+  installChannelPlugin()
+
   console.log('\n🔮 Rune installed successfully!\n')
   console.log('  Usage:')
   console.log('    Right-click any folder → Quick Actions → New Rune')
@@ -454,6 +457,32 @@ fi
   try {
     execSync(`defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add '{ LSHandlerContentType = "com.studio-h.rune"; LSHandlerRoleAll = "com.studio-h.rune"; }'`, { stdio: 'ignore' })
   } catch {}
+}
+
+function installChannelPlugin() {
+  console.log('  Installing Claude Code channel plugin...')
+
+  // Check if claude CLI is available
+  let claudePath
+  try {
+    claudePath = execSync('which claude', { encoding: 'utf-8' }).trim()
+  } catch {
+    console.log('  ⚠️  Claude Code CLI not found. Install it first, then run:')
+    console.log('     claude /plugin install rune-channel@gilhyun/Rune')
+    return
+  }
+
+  try {
+    execSync(`${claudePath} plugin install rune-channel@gilhyun/Rune`, {
+      stdio: 'pipe',
+      timeout: 30000,
+    })
+    console.log('  ✅ Channel plugin installed')
+  } catch (e) {
+    // Plugin install may not support non-interactive mode yet
+    console.log('  ⚠️  Auto-install failed. Run manually inside Claude Code:')
+    console.log('     /plugin install rune-channel@gilhyun/Rune')
+  }
 }
 
 // ── new ──────────────────────────────────────────

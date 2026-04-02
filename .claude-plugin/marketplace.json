@@ -1,0 +1,9 @@
+{
+  "name": "gilhyun/Rune",
+  "plugins": [
+    {
+      "name": "rune-channel",
+      "path": "."
+    }
+  ]
+}

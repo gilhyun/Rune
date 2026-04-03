@@ -5,8 +5,8 @@
 <h1 align="center">Rune</h1>
 
 <p align="center">
-  <strong>File-based AI Agent Harness for Claude Code</strong><br/>
-  Drop a <code>.rune</code> file in any folder. Run it headlessly, chain agents, or open the desktop UI.
+  <strong>The simplest agent harness for Claude Code</strong><br/>
+  One file per agent. Run headlessly, chain them together, automate with triggers, or chat in the desktop UI.
 </p>
 
 <p align="center">
@@ -17,32 +17,20 @@
 
 ---
 
-## What is Rune?
-
-Rune is a file-based agent harness for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Each `.rune` file is an independent AI agent with its own role, memory, and context. Run it from the CLI, chain agents together, automate with triggers, or open the desktop UI.
-
-- **File-based** — One `.rune` file = one agent. Move it, share it, version it with git.
-- **Headless execution** — Run agents from the CLI or scripts. No GUI needed.
-- **Agent chaining** — Pipe agents together in a pipeline. Output → input, automatically.
-- **Automated triggers** — Run agents on file changes, git commits, or a cron schedule.
-- **Node.js API** — Use agents programmatically with `require('openrune')`.
-- **Desktop UI** — Chat interface with real-time activity monitoring and built-in terminal.
-
----
-
 ## Why Rune?
 
-Building a Claude Code harness usually means wiring up process management, I/O parsing, state handling, and a UI from scratch. Rune lets you skip all of that — just drop a file and go.
+Building a Claude Code harness usually means wiring up process management, I/O parsing, state handling, and a UI from scratch.
 
-**No harness boilerplate** — No SDK wiring, no process management, no custom I/O parsing. One `.rune` file gives you a fully working agent you can run from CLI, scripts, or the desktop UI.
+Rune replaces all of that with a single file.
 
-**Persistent context** — Role, memory, and chat history live in the `.rune` file. Close the app, reopen it next week — the agent picks up right where you left off.
+```bash
+npm install -g openrune
 
-**Portable & shareable** — The `.rune` file is just JSON. Commit it to git, share it with teammates, or move it to another machine. The agent goes wherever the file goes.
+rune new reviewer --role "Code reviewer, security focused"
+rune run reviewer.rune "Review the latest commit"
+```
 
-**Multiple agents per project** — A reviewer, a backend dev, a designer — each with its own role and history, working side by side in the same folder.
-
-**Scriptable** — Chain agents, set up triggers, or call agents from your own code via the Node.js API. One file format, multiple ways to use it.
+That's it. No SDK, no boilerplate, no config.
 
 ---
 
@@ -53,131 +41,140 @@ Building a Claude Code harness usually means wiring up process management, I/O p
 - **Node.js** 18+
 - **Claude Code CLI** — `npm install -g @anthropic-ai/claude-code`
 
-### 1. Install
+### Install
 
 ```bash
 npm install -g openrune
 ```
 
-### 2. Create an agent
+### Create and run agents
 
 ```bash
-cd ~/my-project
-rune new reviewer --role "Code reviewer, security focused"
-```
+# Create agents
+rune new architect --role "Software architect"
+rune new coder --role "Backend developer"
+rune new reviewer --role "Code reviewer"
 
-### 3. Run it
-
-```bash
-# Headless — run from CLI, get results in your terminal
+# Run headlessly
 rune run reviewer.rune "Review the latest commit"
 
-# Pipe input from other commands
+# Pipe input
 git diff | rune run reviewer.rune "Review this diff"
 
-# Desktop UI — open the chat interface
+# Agent pipeline — architect designs, coder builds (with file creation)
+rune pipe architect.rune coder.rune "Build a REST API with Express" --auto
+
+# Open desktop UI
 rune open reviewer.rune
 ```
 
 ---
 
-## Use Cases
+## How It Works
 
-**Solo dev workflow** — Create `reviewer.rune` and `coder.rune` in your project. Use one to write code, the other to review it. Each agent keeps its own context and history.
+Each `.rune` file is an independent AI agent:
 
-**Automated code review** — Set up a trigger to review every commit automatically:
-```bash
-rune watch reviewer.rune --on git-commit --prompt "Review this commit for bugs and security issues"
+```json
+{
+  "name": "reviewer",
+  "role": "Code reviewer, security focused",
+  "history": [],
+  "memory": []
+}
 ```
 
-**CI/CD integration** — Run agents headlessly in your pipeline:
-```bash
-rune run qa.rune "Run tests and report any failures" --output json
-```
+- **Portable** — It's just JSON. Commit to git, share with teammates, move between machines.
+- **Persistent** — Role, memory, and chat history live in the file. The agent picks up where it left off.
+- **Independent** — Multiple agents in the same folder, each with their own context.
 
-**Agent pipeline** — Chain specialized agents for complex tasks:
+---
+
+## Agent Pipeline
+
+Chain agents together. Each agent's output feeds into the next:
+
 ```bash
 rune pipe architect.rune coder.rune reviewer.rune "Add OAuth2 login flow"
 ```
 
-**Team collaboration** — Commit `.rune` files to git. Your teammates get the same agent with the same role and memory — no setup needed.
+architect designs → coder implements → reviewer checks.
 
-**Monitoring** — Schedule an agent to check things periodically:
+With `--auto`, the last agent can write files and run commands:
+
 ```bash
-rune watch ops.rune --on cron --interval 10m --prompt "Check if the API is healthy"
+rune pipe architect.rune coder.rune "Build a REST API with Express" --auto
 ```
 
 ---
 
-## Harness
+## Autonomous Mode
 
-### Headless execution
-
-Run any `.rune` agent from the command line without opening the GUI:
+`--auto` lets agents write files, run commands, and fix errors on their own:
 
 ```bash
-rune run reviewer.rune "Review the latest commit"
-
-# Pipe input from other commands
-git diff | rune run reviewer.rune "Review this diff"
-
-# JSON output for scripting
-rune run reviewer.rune "Review src/auth.ts" --output json
+rune run coder.rune "Create a server.js with Express, run npm init and npm install" --auto
 ```
 
-### Agent chaining
+You see every action in real-time:
+```
+🔮 [auto] coder is working on: Create a server.js...
 
-Chain multiple agents into a pipeline. The output of each agent becomes the input for the next:
+  ▶ Write: /path/to/server.js
+  ▶ Bash: npm init -y
+  ▶ Bash: npm install express
+  💬 Server created and dependencies installed.
 
-```bash
-rune pipe coder.rune reviewer.rune tester.rune "Implement a login page"
+✓ coder finished
 ```
 
-This runs: coder writes the code → reviewer reviews it → tester writes tests.
+---
 
-### Automated triggers
+## Automated Triggers
 
-Set agents to run automatically on events:
+Run agents automatically on events:
 
 ```bash
-# Run on every git commit
+# On every git commit
 rune watch reviewer.rune --on git-commit --prompt "Review this commit"
 
-# Watch for file changes
+# On file changes
 rune watch linter.rune --on file-change --glob "src/**/*.ts" --prompt "Check for issues"
 
-# Run on a schedule
+# On a schedule
 rune watch monitor.rune --on cron --interval 5m --prompt "Check server health"
 ```
 
-### Node.js API
+---
 
-Use Rune agents programmatically in your own code:
+## Node.js API
+
+Use agents in your own code:
 
 ```js
 const rune = require('openrune')
 
+// Single agent
 const reviewer = rune.load('reviewer.rune')
 const result = await reviewer.send('Review the latest commit')
-console.log(result)
 
-// Agent chaining via API
+// Pipeline
 const { finalOutput } = await rune.pipe(
-  ['coder.rune', 'reviewer.rune'],
-  'Implement a login page'
+  ['architect.rune', 'coder.rune'],
+  'Build a REST API'
 )
 ```
+
+Works in Express servers, scripts, CI/CD — anywhere Node.js runs.
 
 ---
 
 ## Desktop UI
 
-Rune also includes a desktop app for interactive use. Double-click a `.rune` file or run `rune open`.
+Double-click a `.rune` file or run `rune open` for an interactive chat interface.
 
-- **Chat interface** — Markdown rendering, file attachment, stream cancellation.
-- **Real-time activity** — See every tool call, result, and permission request as it happens via [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks).
-- **Built-in terminal** — Raw Claude Code output and your own commands, side by side.
-- **Right-click to create** — macOS Quick Action lets you create agents from Finder.
+- **Real-time activity** — See every tool call, result, and permission request via [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks).
+- **Built-in terminal** — Claude Code output and your own commands, side by side.
+- **Right-click to create** — macOS Quick Action for creating agents from Finder.
 
 <p align="center">
   <img src="demo.gif" width="100%" alt="Rune demo" />
@@ -185,136 +182,68 @@ Rune also includes a desktop app for interactive use. Double-click a `.rune` fil
 
 ---
 
-## The `.rune` File
+## Use Cases
 
-A `.rune` file is just JSON:
-
-```json
-{
-  "name": "reviewer",
-  "role": "Code reviewer, security focused",
-  "createdAt": "2025-01-01T00:00:00Z",
-  "history": [],
-  "memory": []
-}
-```
-
-Edit the `role` field anytime to change the agent's behavior. History and memory persist across sessions automatically.
+| Scenario | Example |
+|----------|---------|
+| **Code review** | `rune run reviewer.rune "Review the latest commit"` |
+| **Auto review on commit** | `rune watch reviewer.rune --on git-commit --prompt "Review this"` |
+| **Agent pipeline** | `rune pipe architect.rune coder.rune "Build a login page" --auto` |
+| **CI/CD** | `rune run qa.rune "Run tests and report failures" --output json` |
+| **Monitoring** | `rune watch ops.rune --on cron --interval 10m --prompt "Check health"` |
+| **Team sharing** | Commit `.rune` files to git — teammates get the same agents |
+| **Node.js server** | `const rune = require('openrune'); rune.load('agent.rune').send(...)` |
 
 ---
 
-## CLI Commands
+## CLI Reference
 
 | Command | Description |
 |---------|-------------|
-| `rune new <name>` | Create a `.rune` file in the current directory |
-| `rune new <name> --role "..."` | Create with a custom role |
-| `rune run <file.rune> "prompt"` | Run agent headlessly (no GUI) |
-| `rune pipe <a.rune> <b.rune> "prompt"` | Chain agents in a pipeline |
-| `rune watch <file.rune> --on <event>` | Set up automated triggers |
-| `rune open <file.rune>` | Open a `.rune` file (desktop GUI) |
-| `rune list` | List `.rune` files in the current directory |
-| `rune install` | Build app, register file association, install Quick Action |
-| `rune uninstall` | Remove Rune integration (keeps your `.rune` files) |
+| `rune new <name> [--role "..."]` | Create agent |
+| `rune run <file> "prompt" [--auto] [--output json]` | Run headlessly |
+| `rune pipe <a> <b> [...] "prompt" [--auto]` | Chain agents |
+| `rune watch <file> --on <event> --prompt "..."` | Automated triggers |
+| `rune open <file>` | Desktop UI |
+| `rune list` | List agents in current directory |
+| `rune install` | Set up file associations & Quick Action |
+
+**Watch events:** `git-commit`, `git-push`, `file-change` (with `--glob`), `cron` (with `--interval`)
 
 ---
 
 ## Architecture
 
 ```
-                    ┌─────────────────────────┐
-                    │      Desktop UI Mode     │
-                    │   User ↔ Chat UI (React) │
-                    │         ↕ IPC            │
-                    │   Electron Main Process  │
-                    │         ↕ HTTP + SSE     │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────┴────────────┐
-                    │  MCP Channel             │     Claude Code Hooks
-                    │  (rune-channel)          │      ↕ HTTP POST
-                    │         ↕ MCP            │←──── rune-channel /hook
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────┴────────────┐
-                    │     Claude Code CLI      │
-                    └─────────────────────────┘
+  Harness Mode (rune run / pipe / watch):
+    CLI → Claude Code (-p) → stdout
+    No GUI, no MCP — direct execution with .rune context
 
-   Harness Mode (rune run / pipe / watch):
-     CLI → Claude Code CLI (-p) → stdout
-     No MCP channel, no Electron — direct execution
+  Desktop UI Mode (rune open / double-click):
+    Chat UI (React) ↔ Electron ↔ MCP Channel ↔ Claude Code CLI
+    Real-time hooks for activity monitoring
 ```
-
-**Two modes of operation:**
-
-1. **Harness** — Direct CLI execution via `claude -p`. Agents run headlessly with context from the `.rune` file.
-2. **Desktop UI** — Chat input → MCP channel → Claude Code, with hooks for real-time activity monitoring.
 
 ---
 
 ## Development
 
-### Setup
-
 ```bash
 git clone https://github.com/gilhyun/Rune.git
 cd Rune
 npm install
-```
-
-### Build & Run
-
-```bash
-# Build and launch
 npm start
-
-# Build only
-npm run build
 ```
 
 ### Project Structure
 
 ```
-Rune/
-  bin/rune.js              # CLI (install, new, open, run, pipe, watch, list)
-  lib/index.js             # Node.js API (require('openrune'))
-  src/
-    main.ts                # Electron main process
-    preload.ts             # Preload bridge (IPC security)
-  channel/
-    rune-channel.ts        # MCP channel + hooks HTTP endpoint
-  renderer/
-    src/
-      App.tsx              # Root React component
-      features/
-        chat/              # Chat UI (input, messages, activity blocks)
-        terminal/          # Built-in terminal (xterm.js + node-pty)
-      hooks/               # IPC hooks
-      lib/                 # Utilities
+bin/rune.js              CLI (new, run, pipe, watch, open, list)
+lib/index.js             Node.js API
+channel/rune-channel.ts  MCP channel + hooks endpoint
+src/main.ts              Electron main process
+renderer/src/            React chat UI + terminal
 ```
-
----
-
-## Important Notice
-
-> **Rune is currently in early development.** The MCP channel (`rune-channel`) loads via Claude Code's `--dangerously-load-development-channels` flag. This is a development-only feature and may change in future Claude Code releases. Use at your own discretion.
-
----
-
-## Troubleshooting
-
-### "Channel disconnected"
-
-The Claude Code CLI isn't running. It should start automatically via the terminal. If not:
-
-```bash
-cd /your/project/folder
-RUNE_CHANNEL_PORT=<port> claude --permission-mode auto --enable-auto-mode
-```
-
-### Quick Action doesn't appear
-
-Open **System Settings** → **Privacy & Security** → **Extensions** → **Finder** and enable **New Rune**.
 
 ---
 

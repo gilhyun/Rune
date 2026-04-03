@@ -439,10 +439,29 @@ function registerFileAssociation(projectRoot) {
 
   fs.writeFileSync(path.join(appContents, 'Info.plist'), appPlist)
 
-  // Launcher script — uses actual Electron binary, not Node wrapper
+  // Launcher script — dynamically finds the rune binary and uses it to resolve Electron
+  const runeBin = path.resolve(__dirname, 'rune.js')
+  const nodebin = process.execPath
   const launcherScript = `#!/bin/bash
-RUNE_PROJECT="${projectRoot}"
-ELECTRON="${electronBinary}"
+# Dynamically resolve Rune's install location via the CLI binary
+RUNE_BIN="${runeBin}"
+RUNE_PROJECT="$(dirname "$(dirname "$RUNE_BIN")")"
+
+# Find Electron binary
+ELECTRON="$RUNE_PROJECT/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+
+if [ ! -f "$ELECTRON" ]; then
+  # Fallback: try the path saved by rune install
+  if [ -f "$HOME/.rune/project-path" ]; then
+    RUNE_PROJECT="$(cat "$HOME/.rune/project-path")"
+    ELECTRON="$RUNE_PROJECT/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+  fi
+fi
+
+if [ ! -f "$ELECTRON" ]; then
+  osascript -e 'display dialog "Electron not found. Run: rune install" buttons {"OK"}'
+  exit 1
+fi
 
 # CRITICAL: unset this so Electron runs as an app, not plain Node.js
 unset ELECTRON_RUN_AS_NODE
@@ -609,6 +628,23 @@ function createRune(name, allArgs) {
 
 // ── open ─────────────────────────────────────────
 
+function findProjectRoot() {
+  // Always resolve from the actual package location (works for both global and local)
+  const fromBin = path.resolve(__dirname, '..')
+  const electronCheck = path.join(fromBin, 'node_modules', 'electron', 'dist', 'Electron.app', 'Contents', 'MacOS', 'Electron')
+  if (fs.existsSync(electronCheck)) return fromBin
+
+  // Fallback: check saved path
+  const savedPath = path.join(RUNE_HOME, 'project-path')
+  if (fs.existsSync(savedPath)) {
+    const saved = fs.readFileSync(savedPath, 'utf-8').trim()
+    const savedElectron = path.join(saved, 'node_modules', 'electron', 'dist', 'Electron.app', 'Contents', 'MacOS', 'Electron')
+    if (fs.existsSync(savedElectron)) return saved
+  }
+
+  return null
+}
+
 function openRune(file) {
   if (!file) {
     console.log('Usage: rune open <file.rune>')
@@ -621,20 +657,13 @@ function openRune(file) {
     process.exit(1)
   }
 
-  // Try to find the project root
-  let projectRoot
-  const savedPath = path.join(RUNE_HOME, 'project-path')
-  if (fs.existsSync(savedPath)) {
-    projectRoot = fs.readFileSync(savedPath, 'utf-8').trim()
-  } else {
-    projectRoot = path.resolve(__dirname, '..')
-  }
-
-  const electronBinary = path.join(projectRoot, 'node_modules', 'electron', 'dist', 'Electron.app', 'Contents', 'MacOS', 'Electron')
-  if (!fs.existsSync(electronBinary)) {
+  const projectRoot = findProjectRoot()
+  if (!projectRoot) {
     console.error('  ❌ Electron not found. Run `rune install` first.')
     process.exit(1)
   }
+
+  const electronBinary = path.join(projectRoot, 'node_modules', 'electron', 'dist', 'Electron.app', 'Contents', 'MacOS', 'Electron')
 
   console.log(`🔮 Opening ${path.basename(filePath)}...`)
 

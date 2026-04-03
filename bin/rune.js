@@ -747,8 +747,16 @@ function runRune(file, restArgs) {
   if (autoMode) {
     console.log(`🔮 [auto] ${rune.name} is working on: ${prompt}\n`)
 
+    // Temporarily hide .mcp.json to prevent MCP interference
+    const mcpPath = path.join(folderPath, '.mcp.json')
+    const mcpBackup = path.join(folderPath, '.mcp.json.bak')
+    let mcpHidden = false
+    if (fs.existsSync(mcpPath)) {
+      fs.renameSync(mcpPath, mcpBackup)
+      mcpHidden = true
+    }
+
     const claudeArgs = ['-p', '--print',
-      '--bare',
       '--dangerously-skip-permissions',
       '--verbose',
       '--output-format', 'stream-json',
@@ -757,6 +765,12 @@ function runRune(file, restArgs) {
       claudeArgs.push('--system-prompt', systemPrompt)
     }
     claudeArgs.push(prompt)
+
+    const restoreMcp = () => {
+      if (mcpHidden && fs.existsSync(mcpBackup)) {
+        fs.renameSync(mcpBackup, mcpPath)
+      }
+    }
 
     const child = spawn('claude', claudeArgs, {
       cwd: folderPath,
@@ -820,6 +834,7 @@ function runRune(file, restArgs) {
     child.stderr.on('data', (d) => { process.stderr.write(d) })
 
     child.on('close', (code) => {
+      restoreMcp()
       // Save to history
       rune.history = rune.history || []
       rune.history.push({ role: 'user', text: prompt, ts: Date.now() })
@@ -831,21 +846,27 @@ function runRune(file, restArgs) {
       process.exit(code || 0)
     })
 
+    // Restore .mcp.json if process is killed
+    process.on('SIGINT', restoreMcp)
+    process.on('SIGTERM', restoreMcp)
+
     return
   }
 
   // Normal mode: print-only, no tool execution
-  const claudeArgs = ['-p', '--print', '--bare']
+  // Run from tmpdir to avoid .mcp.json interference, add project folder via --add-dir
+  const claudeArgs = ['-p', '--print', '--add-dir', folderPath]
   if (systemPrompt) {
-    claudeArgs.push('--system-prompt', systemPrompt)
+    claudeArgs.push('--system-prompt', systemPrompt + `\nWorking folder: ${folderPath}`)
   }
   if (outputFormat === 'json') {
     claudeArgs.push('--output-format', 'json')
   }
   claudeArgs.push(prompt)
 
+  const os = require('os')
   const child = spawn('claude', claudeArgs, {
-    cwd: folderPath,
+    cwd: os.tmpdir(),
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env },
   })

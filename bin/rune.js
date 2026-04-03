@@ -701,12 +701,16 @@ function runRune(file, restArgs) {
   let prompt = ''
   let outputFormat = 'text'
   let autoMode = false
+  let logFile = ''
   for (let i = 0; i < restArgs.length; i++) {
     if (restArgs[i] === '--output' && restArgs[i + 1]) {
       outputFormat = restArgs[i + 1]
       i++
     } else if (restArgs[i] === '--auto') {
       autoMode = true
+    } else if (restArgs[i] === '--log' && restArgs[i + 1]) {
+      logFile = restArgs[i + 1]
+      i++
     } else if (!prompt) {
       prompt = restArgs[i]
     }
@@ -743,6 +747,40 @@ function runRune(file, restArgs) {
 
   const systemPrompt = systemParts.join('\n')
 
+  // Build permissions args from .rune file
+  function buildPermissionArgs(runeData) {
+    const args = []
+    if (runeData.permissions) {
+      const p = runeData.permissions
+      const allowed = []
+      const disallowed = []
+
+      if (p.fileWrite === false) disallowed.push('Write', 'Edit')
+      if (p.bash === false) disallowed.push('Bash')
+      if (p.network === false) disallowed.push('WebFetch', 'WebSearch')
+
+      if (p.allowPaths && p.allowPaths.length > 0) {
+        for (const ap of p.allowPaths) {
+          allowed.push(`Read(${ap})`, `Glob(${ap})`, `Grep(${ap})`)
+          if (p.fileWrite !== false) allowed.push(`Write(${ap})`, `Edit(${ap})`)
+        }
+      }
+      if (p.denyPaths && p.denyPaths.length > 0) {
+        for (const dp of p.denyPaths) {
+          disallowed.push(`Read(${dp})`, `Write(${dp})`, `Edit(${dp})`, `Glob(${dp})`, `Grep(${dp})`)
+        }
+      }
+
+      if (allowed.length > 0) args.push('--allowedTools', allowed.join(' '))
+      if (disallowed.length > 0) args.push('--disallowedTools', disallowed.join(' '))
+    }
+    return args
+  }
+
+  // Logging
+  const logEntries = []
+  const logStart = Date.now()
+
   // Auto mode: agent can read/write files, run commands, fix errors autonomously
   if (autoMode) {
     console.log(`🔮 [auto] ${rune.name} is working on: ${prompt}\n`)
@@ -761,6 +799,10 @@ function runRune(file, restArgs) {
       '--verbose',
       '--output-format', 'stream-json',
     ]
+    // Apply permissions (override dangerously-skip if permissions are set)
+    const permArgs = buildPermissionArgs(rune)
+    claudeArgs.push(...permArgs)
+
     if (systemPrompt) {
       claudeArgs.push('--system-prompt', systemPrompt)
     }
@@ -796,6 +838,7 @@ function runRune(file, restArgs) {
               if (block.type === 'tool_use') {
                 const tool = block.name || 'unknown'
                 const input = block.input || {}
+                logEntries.push({ type: 'tool_use', tool, input, ts: Date.now() })
                 if (tool === 'Bash') {
                   console.log(`  ▶ Bash: ${(input.command || '').slice(0, 120)}`)
                 } else if (tool === 'Write') {
@@ -819,12 +862,13 @@ function runRune(file, restArgs) {
 
           // Tool results
           if (event.type === 'user' && event.tool_use_result) {
-            // silently track tool results
+            logEntries.push({ type: 'tool_result', result: event.tool_use_result, ts: Date.now() })
           }
 
           // Final result
           if (event.type === 'result') {
             fullOutput = event.result || ''
+            logEntries.push({ type: 'result', cost_usd: event.total_cost_usd, usage: event.usage, duration_ms: event.duration_ms, ts: Date.now() })
             if (fullOutput) console.log(`\n${fullOutput}`)
           }
         } catch {}
@@ -840,6 +884,27 @@ function runRune(file, restArgs) {
       rune.history.push({ role: 'user', text: prompt, ts: Date.now() })
       rune.history.push({ role: 'assistant', text: fullOutput.trim(), ts: Date.now() })
       fs.writeFileSync(filePath, JSON.stringify(rune, null, 2))
+
+      // Write structured log
+      if (logFile) {
+        const costEntry = logEntries.find(e => e.type === 'result')
+        const log = {
+          agent: rune.name,
+          role: rune.role,
+          prompt,
+          mode: 'auto',
+          permissions: rune.permissions || null,
+          duration_ms: Date.now() - logStart,
+          cost_usd: costEntry?.cost_usd || null,
+          usage: costEntry?.usage || null,
+          tool_calls: logEntries.filter(e => e.type === 'tool_use').map(e => ({ tool: e.tool, input: e.input, ts: e.ts })),
+          result: fullOutput.trim(),
+          exit_code: code,
+          ts: new Date().toISOString(),
+        }
+        fs.writeFileSync(path.resolve(logFile), JSON.stringify(log, null, 2))
+        console.log(`  📋 Log saved: ${logFile}`)
+      }
 
       if (code !== 0) console.error(`\n  ⚠️  Agent exited with code ${code}`)
       else console.log(`\n✓ ${rune.name} finished`)
@@ -1361,6 +1426,7 @@ Usage:
   rune run <file.rune> "prompt"   Run agent headlessly (no GUI)
     --auto                  Auto mode: agent writes files, runs commands, fixes errors
     --output json|text      Output format (default: text)
+    --log <file.json>       Save structured log (tool calls, cost, duration)
   rune pipe <a.rune> <b.rune> ... "prompt"   Chain agents in a pipeline
     --output json|text      Output format (default: text)
   rune watch <file.rune>    Set up automated triggers

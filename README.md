@@ -62,8 +62,59 @@ Each `.rune` file is just JSON — portable, shareable, version-controllable:
 {
   "name": "reviewer",
   "role": "Code reviewer, security focused",
+  "permissions": {
+    "fileWrite": false,
+    "bash": false,
+    "allowPaths": ["src/**"],
+    "denyPaths": [".env", "secrets/**"]
+  },
   "history": [],
   "memory": []
+}
+```
+
+### Permissions
+
+Control what each agent can do. No permissions = full access (backward compatible).
+
+```json
+{
+  "permissions": {
+    "fileWrite": false,
+    "bash": false,
+    "network": false,
+    "allowPaths": ["src/**", "tests/**"],
+    "denyPaths": [".env", "secrets/**", "node_modules/**"]
+  }
+}
+```
+
+- `fileWrite: false` — agent can read but not write/edit files
+- `bash: false` — agent cannot run shell commands
+- `network: false` — agent cannot make web requests
+- `allowPaths` / `denyPaths` — restrict file access to specific patterns
+
+A reviewer that can only read `src/`: safe. A coder that can write anywhere: powerful. You decide per agent.
+
+### Structured logging
+
+Track what agents do, how long it takes, and how much it costs:
+
+```bash
+rune run reviewer.rune "Review this project" --auto --log review.json
+```
+
+```json
+{
+  "agent": "reviewer",
+  "prompt": "Review this project",
+  "duration_ms": 12340,
+  "cost_usd": 0.045,
+  "tool_calls": [
+    { "tool": "Read", "input": { "file_path": "src/index.ts" } },
+    { "tool": "Grep", "input": { "pattern": "TODO" } }
+  ],
+  "result": "Found 3 issues..."
 }
 ```
 

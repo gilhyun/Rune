@@ -1,6 +1,6 @@
 {
   "name": "openrune",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Rune — File-based AI Agent Desktop App",
   "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code"],
   "repository": {
@@ -25,29 +25,29 @@
     "dev": "npm run build && electron ."
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
-    "@vitejs/plugin-react": "^6.0.1",
-    "electron": "^28.3.3",
-    "esbuild": "^0.27.4",
-    "tailwindcss": "^4.2.2",
-    "typescript": "^5.7.0",
     "electron-builder": "^25.0.0",
-    "vite": "^8.0.1"
+    "typescript": "^5.7.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@tailwindcss/vite": "^4.2.2",
+    "@vitejs/plugin-react": "^6.0.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "clsx": "^2.1.1",
+    "electron": "^28.3.3",
+    "esbuild": "^0.27.4",
     "lucide-react": "^0.577.0",
     "node-pty": "^1.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2",
+    "vite": "^8.0.1"
   }
 }

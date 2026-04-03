@@ -730,7 +730,7 @@ function runRune(file, restArgs) {
 
     const child = spawn('claude', claudeArgs, {
       cwd: folderPath,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     })
 

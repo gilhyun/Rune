@@ -44,10 +44,6 @@ Building a Claude Code harness usually means wiring up process management, I/O p
 
 **Scriptable** — Chain agents, set up triggers, or call agents from your own code via the Node.js API. One file format, multiple ways to use it.
 
-<p align="center">
-  <img src="demo.gif" width="100%" alt="Rune demo" />
-</p>
-
 ---
 
 ## Quick Start
@@ -63,31 +59,24 @@ Building a Claude Code harness usually means wiring up process management, I/O p
 npm install -g openrune
 ```
 
-### 2. Create your first agent
+### 2. Create an agent
 
 ```bash
 cd ~/my-project
-rune new myagent
+rune new reviewer --role "Code reviewer, security focused"
 ```
 
-Or right-click any folder in Finder → Quick Actions → **New Rune**
-
-<p align="center">
-  <img src="Screenshot.png" width="500" alt="Right-click to create a Rune agent" />
-</p>
-
-### 3. Use it
-
-**Desktop UI** — Double-click the `.rune` file, or:
+### 3. Run it
 
 ```bash
-rune open myagent.rune
-```
+# Headless — run from CLI, get results in your terminal
+rune run reviewer.rune "Review the latest commit"
 
-**Headless** — Run from the CLI without a GUI:
+# Pipe input from other commands
+git diff | rune run reviewer.rune "Review this diff"
 
-```bash
-rune run myagent.rune "Explain this project's architecture"
+# Desktop UI — open the chat interface
+rune open reviewer.rune
 ```
 
 ---
@@ -120,71 +109,7 @@ rune watch ops.rune --on cron --interval 10m --prompt "Check if the API is healt
 
 ---
 
-## Features
-
-### Harness
-
-- **Headless execution** — `rune run` lets you run agents from the CLI, scripts, or CI/CD. No GUI needed.
-- **Agent chaining** — `rune pipe` connects agents in sequence. Each agent's output feeds into the next.
-- **Automated triggers** — `rune watch` runs agents on file changes, git commits, or a cron schedule.
-- **Node.js API** — `require('openrune')` to use agents programmatically in your own code.
-- **Persistent context** — Role, memory, and chat history are saved in the `.rune` file across sessions.
-
-### Desktop UI
-
-- **Chat interface** — Markdown rendering, file attachment, stream cancellation.
-- **Real-time activity** — See every tool call, result, and permission request as it happens via [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks).
-- **Built-in terminal** — Raw Claude Code output and your own commands, side by side.
-
-### Agent Roles
-
-```bash
-# General assistant
-rune new assistant
-
-# Specialized agents
-rune new designer --role "UI/UX design expert"
-rune new backend --role "Backend developer, Node.js specialist"
-rune new reviewer --role "Code reviewer, focused on security and performance"
-```
-
-### The `.rune` File
-
-A `.rune` file is just JSON:
-
-```json
-{
-  "name": "myagent",
-  "role": "General assistant",
-  "icon": "bot",
-  "createdAt": "2025-01-01T00:00:00Z",
-  "history": []
-}
-```
-
-Edit the `role` field anytime to change the agent's behavior.
-
----
-
-## CLI Commands
-
-| Command | Description |
-|---------|-------------|
-| `rune install` | Build app, register file association, install Quick Action |
-| `rune new <name>` | Create a `.rune` file in the current directory |
-| `rune new <name> --role "..."` | Create with a custom role |
-| `rune open <file.rune>` | Open a `.rune` file (desktop GUI) |
-| `rune run <file.rune> "prompt"` | Run agent headlessly (no GUI) |
-| `rune pipe <a.rune> <b.rune> "prompt"` | Chain agents in a pipeline |
-| `rune watch <file.rune> --on <event>` | Set up automated triggers |
-| `rune list` | List `.rune` files in the current directory |
-| `rune uninstall` | Remove Rune integration (keeps your `.rune` files) |
-
----
-
-## Harness Mode
-
-Rune isn't just a desktop app — it's a full agent harness. Use it from scripts, CI/CD, or your own tools.
+## Harness
 
 ### Headless execution
 
@@ -245,6 +170,55 @@ const { finalOutput } = await rune.pipe(
 
 ---
 
+## Desktop UI
+
+Rune also includes a desktop app for interactive use. Double-click a `.rune` file or run `rune open`.
+
+- **Chat interface** — Markdown rendering, file attachment, stream cancellation.
+- **Real-time activity** — See every tool call, result, and permission request as it happens via [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks).
+- **Built-in terminal** — Raw Claude Code output and your own commands, side by side.
+- **Right-click to create** — macOS Quick Action lets you create agents from Finder.
+
+<p align="center">
+  <img src="demo.gif" width="100%" alt="Rune demo" />
+</p>
+
+---
+
+## The `.rune` File
+
+A `.rune` file is just JSON:
+
+```json
+{
+  "name": "reviewer",
+  "role": "Code reviewer, security focused",
+  "createdAt": "2025-01-01T00:00:00Z",
+  "history": [],
+  "memory": []
+}
+```
+
+Edit the `role` field anytime to change the agent's behavior. History and memory persist across sessions automatically.
+
+---
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `rune new <name>` | Create a `.rune` file in the current directory |
+| `rune new <name> --role "..."` | Create with a custom role |
+| `rune run <file.rune> "prompt"` | Run agent headlessly (no GUI) |
+| `rune pipe <a.rune> <b.rune> "prompt"` | Chain agents in a pipeline |
+| `rune watch <file.rune> --on <event>` | Set up automated triggers |
+| `rune open <file.rune>` | Open a `.rune` file (desktop GUI) |
+| `rune list` | List `.rune` files in the current directory |
+| `rune install` | Build app, register file association, install Quick Action |
+| `rune uninstall` | Remove Rune integration (keeps your `.rune` files) |
+
+---
+
 ## Architecture
 
 ```
@@ -273,8 +247,8 @@ const { finalOutput } = await rune.pipe(
 
 **Two modes of operation:**
 
-1. **Desktop UI** — Chat input → MCP channel → Claude Code, with hooks for real-time activity monitoring.
-2. **Harness** — Direct CLI execution via `claude -p`. Agents run headlessly with context from the `.rune` file.
+1. **Harness** — Direct CLI execution via `claude -p`. Agents run headlessly with context from the `.rune` file.
+2. **Desktop UI** — Chat input → MCP channel → Claude Code, with hooks for real-time activity monitoring.
 
 ---
 
@@ -318,12 +292,6 @@ Rune/
       hooks/               # IPC hooks
       lib/                 # Utilities
 ```
-
-### Hooks Configuration
-
-Rune automatically sets up Claude Code hooks in `~/.claude/settings.json`. The hooks only fire when `RUNE_CHANNEL_PORT` is set, so they don't affect standalone Claude Code usage.
-
-Captured events: `PreToolUse`, `PostToolUse`, `PermissionRequest`, `UserPromptSubmit`, `Stop`, `Notification`, `SessionStart`, `SessionEnd`.
 
 ---
 

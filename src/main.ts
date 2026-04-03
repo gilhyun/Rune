@@ -344,9 +344,8 @@ async function createRuneWindow(filePath: string) {
 
   const rune = readRuneFile(filePath)
   const folderPath = path.dirname(filePath)
-  let port = rune.port
-  if (port && await isPortInUse(port)) port = 0
-  if (!port) port = await allocatePort()
+  // Always allocate a fresh port to avoid conflicts with stale ports
+  const port = await allocatePort()
 
   // Sync name with filename & save port
   const fileBaseName = path.basename(filePath, '.rune')
@@ -475,6 +474,17 @@ async function createRuneWindow(filePath: string) {
       try { p.kill() } catch {}
       ptyProcesses.delete(id)
       ptyOwnerWindows.delete(id)
+    }
+    // Clear port from .rune file so next session gets a fresh port
+    try {
+      const closeRune = readRuneFile(currentFilePath)
+      delete closeRune.port
+      writeRuneFile(currentFilePath, closeRune)
+    } catch {}
+    // Clean up .mcp.json if no other windows use this folder
+    const folderStillUsed = [...windowRegistry.values()].some(r => r.folderPath === folderPath && !r.window.isDestroyed())
+    if (!folderStillUsed) {
+      try { fs.unlinkSync(path.join(folderPath, '.mcp.json')) } catch {}
     }
     updateDockVisibility()
   })

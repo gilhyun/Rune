@@ -7,7 +7,7 @@ export function App() {
   const chat = useChat()
   const [showTerminal, setShowTerminal] = useState(true)
 
-  // Auto-switch to chat when MCP channel connects
+  // Auto-switch to chat when MCP channel connects OR when history is loaded
   useEffect(() => {
     const handler = (data: { port: number; connected: boolean }) => {
       if (data.connected) setShowTerminal(false)
@@ -15,6 +15,11 @@ export function App() {
     window.rune.on('rune:channelStatus', handler)
     return () => window.rune.off('rune:channelStatus', handler)
   }, [])
+
+  // If there's existing history, show chat immediately
+  useEffect(() => {
+    if (chat.messages.length > 0) setShowTerminal(false)
+  }, [chat.messages.length > 0])
 
   const toggleTerminal = useCallback(() => setShowTerminal(prev => !prev), [])
 

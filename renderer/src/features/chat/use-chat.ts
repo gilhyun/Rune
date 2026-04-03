@@ -16,9 +16,18 @@ export function useChat() {
   const send = useIPCSend()
 
   // Track channel connection status
+  const lastStatusRef = useRef<{ port: number; connected: boolean } | null>(null)
   useIPCOn('rune:channelStatus', (data: { port: number; connected: boolean }) => {
+    lastStatusRef.current = data
     if (runeInfo && data.port === runeInfo.port) setConnected(data.connected)
   })
+
+  // Apply buffered status when runeInfo arrives
+  useEffect(() => {
+    if (runeInfo && lastStatusRef.current && lastStatusRef.current.port === runeInfo.port) {
+      setConnected(lastStatusRef.current.connected)
+    }
+  }, [runeInfo])
 
   // Initialize from main process
   useIPCOn('rune:init', (data: RuneInfo) => {

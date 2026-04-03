@@ -19,13 +19,14 @@
 
 ## What is Rune?
 
-Rune turns any folder into an AI workspace. Each `.rune` file is an independent AI agent with its own chat history, role, and context — all powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+Rune is a file-based agent harness for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Each `.rune` file is an independent AI agent with its own role, memory, and context. Run it from the CLI, chain agents together, automate with triggers, or open the desktop UI.
 
 - **File-based** — One `.rune` file = one agent. Move it, share it, version it with git.
-- **Folder-aware** — The agent knows your project. It can read files, run commands, and write code.
-- **Real-time activity** — See every tool call, permission request, and agent action as it happens via Claude Code hooks.
-- **Desktop-native** — Lightweight Electron app with built-in terminal. No browser needed.
-- **Right-click to create** — macOS Quick Action lets you create agents from Finder.
+- **Headless execution** — Run agents from the CLI or scripts. No GUI needed.
+- **Agent chaining** — Pipe agents together in a pipeline. Output → input, automatically.
+- **Automated triggers** — Run agents on file changes, git commits, or a cron schedule.
+- **Node.js API** — Use agents programmatically with `require('openrune')`.
+- **Desktop UI** — Chat interface with real-time activity monitoring and built-in terminal.
 
 ---
 

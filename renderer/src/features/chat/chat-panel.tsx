@@ -66,7 +66,7 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
       <div className="flex-1 overflow-hidden relative">
         {/* Terminal */}
         {chat.runeInfo && (
-          <div className={showTerminal ? 'absolute inset-0 z-10 top-full' : 'absolute inset-0 invisible'} style={{ top: 0, left: 0, right: 0, bottom: 0 }}>
+          <div className="absolute inset-0 z-10" style={{ display: showTerminal ? 'block' : 'none' }}>
             <TerminalPanel
               cwd={chat.runeInfo.folderPath}
               autoCommand={channelCommand}
@@ -75,7 +75,7 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
           </div>
         )}
         {/* Chat view */}
-        <div className={showTerminal ? 'absolute inset-0 invisible' : 'absolute inset-0 flex flex-col'}>
+        <div className="absolute inset-0 flex flex-col" style={{ display: showTerminal ? 'none' : 'flex' }}>
           <MessageList
             messages={chat.messages}
             isStreaming={chat.isStreaming}

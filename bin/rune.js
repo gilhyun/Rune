@@ -765,31 +765,52 @@ function runRune(file, restArgs) {
 
     let fullOutput = ''
 
+    let buffer = ''
     child.stdout.on('data', (data) => {
-      const lines = data.toString().split('\n').filter(Boolean)
+      buffer += data.toString()
+      const lines = buffer.split('\n')
+      buffer = lines.pop() // keep incomplete line in buffer
       for (const line of lines) {
+        if (!line.trim()) continue
         try {
           const event = JSON.parse(line)
 
-          if (event.type === 'assistant' && event.subtype === 'tool_use') {
-            const tool = event.tool_name || event.name || 'unknown'
-            const input = event.input || {}
-            if (tool === 'Bash') {
-              console.log(`  ▶ Bash: ${(input.command || '').slice(0, 120)}`)
-            } else if (tool === 'Write') {
-              console.log(`  ▶ Write: ${input.file_path || ''}`)
-            } else if (tool === 'Edit') {
-              console.log(`  ▶ Edit: ${input.file_path || ''}`)
-            } else if (tool === 'Read') {
-              console.log(`  ▶ Read: ${input.file_path || ''}`)
-            } else {
-              console.log(`  ▶ ${tool}`)
+          // Tool use events
+          if (event.type === 'assistant' && event.message && event.message.content) {
+            for (const block of event.message.content) {
+              if (block.type === 'tool_use') {
+                const tool = block.name || 'unknown'
+                const input = block.input || {}
+                if (tool === 'Bash') {
+                  console.log(`  ▶ Bash: ${(input.command || '').slice(0, 120)}`)
+                } else if (tool === 'Write') {
+                  console.log(`  ▶ Write: ${input.file_path || ''}`)
+                } else if (tool === 'Edit') {
+                  console.log(`  ▶ Edit: ${input.file_path || ''}`)
+                } else if (tool === 'Read') {
+                  console.log(`  ▶ Read: ${input.file_path || ''}`)
+                } else if (tool === 'Grep') {
+                  console.log(`  ▶ Grep: ${input.pattern || ''}`)
+                } else if (tool === 'Glob') {
+                  console.log(`  ▶ Glob: ${input.pattern || ''}`)
+                } else {
+                  console.log(`  ▶ ${tool}`)
+                }
+              } else if (block.type === 'text' && block.text && block.text.trim()) {
+                console.log(`  💬 ${block.text.trim().slice(0, 200)}`)
+              }
             }
           }
 
+          // Tool results
+          if (event.type === 'user' && event.tool_use_result) {
+            // silently track tool results
+          }
+
+          // Final result
           if (event.type === 'result') {
             fullOutput = event.result || ''
-            console.log(`\n${fullOutput}`)
+            if (fullOutput) console.log(`\n${fullOutput}`)
           }
         } catch {}
       }

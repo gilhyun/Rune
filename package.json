@@ -1,6 +1,6 @@
 {
   "name": "openrune",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Rune — File-based AI Agent Harness for Claude Code",
   "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code", "harness", "automation"],
   "repository": {

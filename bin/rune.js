@@ -5,6 +5,14 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 
+// Platform check — macOS only for now
+if (process.platform !== 'darwin') {
+  console.error('\n  ❌ Rune currently supports macOS only.')
+  console.error('     Windows and Linux support is coming soon.')
+  console.error('     Follow https://github.com/gilhyun/Rune for updates.\n')
+  process.exit(1)
+}
+
 const RUNE_HOME = path.join(os.homedir(), '.rune')
 const APP_DIR = path.join(RUNE_HOME, 'app')
 const QUICK_ACTION_DIR = path.join(os.homedir(), 'Library', 'Services')

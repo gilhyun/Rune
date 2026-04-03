@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2, SquareTerminal, Bot } from 'lucide-react'
+import { Trash2, SquareTerminal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIPCOn } from '@/hooks/use-ipc'
 
@@ -26,10 +26,8 @@ export function ChatHeader({ name, role, port, showTerminal, onClearHistory, onT
       style={{ WebkitAppRegion: 'drag' as any }}
     >
       <div className="flex items-center gap-2" style={{ marginLeft: process.platform === 'darwin' ? 68 : 0 }}>
-        <Bot className="h-4 w-4 text-accent" />
         <span className="text-[13px] font-medium text-foreground">{name}</span>
         <div className={cn('w-2 h-2 rounded-full', dotColor, !connected && 'animate-pulse')} />
-        <span className="text-[11px] text-muted tabular-nums">:{port}</span>
       </div>
 
       <div className="flex items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' as any }}>

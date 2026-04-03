@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
-import { Sparkles, Zap, Loader2 } from 'lucide-react'
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+import { Zap, Loader2 } from 'lucide-react'
 import { MessageBubble } from './message-bubble'
 import { ActivityBlock } from './activity-block'
 import { useIPCOn } from '@/hooks/use-ipc'
@@ -82,37 +82,38 @@ export function MessageList({ messages, isStreaming, streamingDisplayText, strea
     })
   }, [visible])
 
+  const loadingMessages = useMemo(() => [
+    'Preparing your assistant...',
+    'Waking up the agent...',
+    'Getting things ready...',
+    'Waiting for assistant response...',
+    'Setting up the workspace...',
+    'Almost there...',
+    'Connecting the dots...',
+    'Brewing some intelligence...',
+  ], [])
+
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(() => Math.floor(Math.random() * 8))
+
+  useEffect(() => {
+    if (messages.length > 0 || isStreaming) return
+    const timer = setInterval(() => {
+      setLoadingMsgIdx(prev => {
+        let next: number
+        do { next = Math.floor(Math.random() * loadingMessages.length) } while (next === prev)
+        return next
+      })
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [messages.length, isStreaming, loadingMessages])
+
   if (messages.length === 0 && !isStreaming) {
     return (
-      <div ref={containerRef} className="flex-1 overflow-y-auto flex flex-col items-center justify-center gap-5 px-10">
-        {!connected ? (
-          <>
-            <div className="h-12 w-12 rounded-xl bg-accent-red/10 flex items-center justify-center">
-              <Zap className="h-6 w-6 text-accent-red" />
-            </div>
-            <div className="text-center">
-              <p className="text-[14px] font-medium text-foreground mb-1.5">Waiting for channel</p>
-              <p className="text-[12px] text-muted leading-relaxed mb-3">
-                Auto-connects when Claude CLI is running.
-              </p>
-              <div className="bg-[#1a1a1a] border border-border rounded-lg px-4 py-3 text-left max-w-[440px]">
-                <p className="text-[11px] text-muted mb-1.5">Run in terminal:</p>
-                <code className="text-[11px] text-accent leading-relaxed break-all">
-                  {folderPath ? `cd ${folderPath} && ` : ''}
-                  RUNE_CHANNEL_PORT={port} claude --permission-mode auto --enable-auto-mode --dangerously-load-development-channels server:rune-channel
-                </code>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-accent" />
-            </div>
-            <p className="text-[14px] font-medium text-foreground">Ready to chat</p>
-            <p className="text-[12px] text-muted">Ask me anything about your project</p>
-          </>
-        )}
+      <div ref={containerRef} className="flex-1 overflow-y-auto flex flex-col items-center justify-center gap-3 px-10">
+        <Loader2 className="h-6 w-6 text-muted animate-spin" />
+        <p className="text-[12px] text-muted transition-opacity duration-500">
+          {!connected ? 'Connecting to channel...' : loadingMessages[loadingMsgIdx]}
+        </p>
       </div>
     )
   }

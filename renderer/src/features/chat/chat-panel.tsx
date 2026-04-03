@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Toaster, toast } from 'sonner'
 import { ShieldAlert } from 'lucide-react'
 import { ChatHeader } from './chat-header'
@@ -122,8 +122,8 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
           )}
 
           <Toaster
-            position="bottom-center"
-            offset={80}
+            position="top-center"
+            style={{ top: '56px' }}
             toastOptions={{
               style: {
                 fontSize: '12px',
@@ -135,12 +135,14 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
               },
             }}
           />
-          <ChatInput
-            isStreaming={chat.isStreaming}
-            disabled={!chat.connected}
-            onSend={chat.sendMessage}
-            onCancel={chat.cancelStream}
-          />
+          {(chat.messages.length > 0 || chat.isStreaming) && (
+            <ChatInput
+              isStreaming={chat.isStreaming}
+              disabled={!chat.connected}
+              onSend={chat.sendMessage}
+              onCancel={chat.cancelStream}
+            />
+          )}
         </div>
       </div>
     </div>

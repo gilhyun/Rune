@@ -169,6 +169,18 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'rune_search_history',
+      description: 'Search past conversation history by keyword. Returns matching messages with surrounding context. Use this when the user references a past conversation or you need to recall previous discussions.',
+      inputSchema: {
+        type: 'object' as const,
+        properties: {
+          query: { type: 'string', description: 'Search keyword or phrase to find in past messages' },
+          limit: { type: 'number', description: 'Max number of results to return (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+    {
       name: 'rune_memory',
       description: 'Save, list, or delete persistent memory notes in the .rune file. Use this to remember important context across sessions — user preferences, project decisions, key findings, etc. Memory persists even when the session ends.',
       inputSchema: {
@@ -225,6 +237,44 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
     return { content: [{ type: 'text' as const, text: 'sent' }] }
   }
 
+  // rune_search_history tool
+  if (req.params.name === 'rune_search_history') {
+    const { query, limit: maxResults } = req.params.arguments as { query: string; limit?: number }
+    const rune = readRuneFile()
+    if (!rune || !rune.history || rune.history.length === 0) {
+      return { content: [{ type: 'text' as const, text: 'No conversation history found.' }] }
+    }
+
+    const cap = maxResults || 10
+    const keywords = query.toLowerCase().split(/\s+/)
+    const scored: { idx: number; msg: typeof rune.history[0]; score: number }[] = []
+
+    for (let i = 0; i < rune.history.length; i++) {
+      const text = rune.history[i].text.toLowerCase()
+      let score = 0
+      for (const kw of keywords) {
+        if (text.includes(kw)) score++
+      }
+      if (score > 0) scored.push({ idx: i, msg: rune.history[i], score })
+    }
+
+    if (scored.length === 0) {
+      return { content: [{ type: 'text' as const, text: `No messages matching "${query}".` }] }
+    }
+
+    scored.sort((a, b) => b.score - a.score)
+    const results = scored.slice(0, cap)
+
+    const output = results.map(r => {
+      const who = r.msg.role === 'user' ? 'User' : 'Assistant'
+      const date = new Date(r.msg.ts).toLocaleString()
+      const text = r.msg.text.length > 300 ? r.msg.text.slice(0, 300) + '…' : r.msg.text
+      return `[#${r.idx + 1} | ${date} | ${who}]\n${text}`
+    }).join('\n\n---\n\n')
+
+    return { content: [{ type: 'text' as const, text: `Found ${scored.length} matches (showing top ${results.length}):\n\n${output}` }] }
+  }
+
   // rune_memory tool
   if (req.params.name === 'rune_memory') {
     const { action, text, index } = req.params.arguments as { action: string; text?: string; index?: number }
@@ -277,12 +327,17 @@ async function main() {
 
   // Notify Claude about session start with history + memory context
   setTimeout(() => {
+    const rune = readRuneFile()
+    const hasHistory = rune?.history && rune.history.length > 0
     const sessionContext = buildSessionContext()
     const contextBlock = sessionContext ? `\n\n${sessionContext}` : ''
+    const greetInstruction = hasHistory
+      ? ''
+      : `\n\nThis is a new conversation with no prior history. Greet the user briefly via rune_reply (no request_id). Introduce yourself based on your role and mention the working folder. Keep it short — 1-2 sentences.`
     mcp.notification({
       method: 'notifications/claude/channel',
       params: {
-        content: `[SESSION_START] Channel connected. Folder: ${FOLDER_PATH || 'none'}${AGENT_ROLE ? `. Role: ${AGENT_ROLE}` : ''}${contextBlock}\n\nUse the rune_memory tool to save important context that should persist across sessions.`,
+        content: `[SESSION_START] Channel connected. Folder: ${FOLDER_PATH || 'none'}${AGENT_ROLE ? `. Role: ${AGENT_ROLE}` : ''}${contextBlock}\n\nUse the rune_memory tool to save important context that should persist across sessions.${greetInstruction}`,
         meta: { type: 'session_start' },
       },
     }).then(() => {

@@ -17,6 +17,12 @@
 
 ---
 
+<p align="center">
+  <video src="demo.mp4" width="100%" autoplay loop muted playsinline></video>
+</p>
+
+---
+
 ## What is Rune?
 
 Rune turns any folder into an AI workspace. Each `.rune` file is an independent AI agent with its own chat history, role, and context — all powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
@@ -211,6 +217,12 @@ Captured events: `PreToolUse`, `PostToolUse`, `PermissionRequest`, `UserPromptSu
 
 ---
 
+## Important Notice
+
+> **Rune is currently in early development.** The MCP channel (`rune-channel`) loads via Claude Code's `--dangerously-load-development-channels` flag. This is a development-only feature and may change in future Claude Code releases. Use at your own discretion.
+
+---
+
 ## Troubleshooting
 
 ### "Channel disconnected"
@@ -225,6 +237,16 @@ RUNE_CHANNEL_PORT=<port> claude --permission-mode auto --enable-auto-mode
 ### Quick Action doesn't appear
 
 Open **System Settings** → **Privacy & Security** → **Extensions** → **Finder** and enable **New Rune**.
+
+---
+
+## Platform Support
+
+| Platform | Status |
+|----------|--------|
+| macOS | Supported |
+| Windows | Coming soon |
+| Linux | Coming soon |
 
 ---
 

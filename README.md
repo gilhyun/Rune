@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>The simplest agent harness for Claude Code</strong><br/>
-  One file per agent. Run headlessly, chain them together, automate with triggers, or chat in the desktop UI.
+  No SDK. No boilerplate. Just one file per agent.
 </p>
 
 <p align="center">
@@ -17,62 +17,37 @@
 
 ---
 
-## Why Rune?
-
-Building a Claude Code harness usually means wiring up process management, I/O parsing, state handling, and a UI from scratch.
-
-Rune replaces all of that with a single file.
+## Install
 
 ```bash
+npm install -g @anthropic-ai/claude-code   # prerequisite
 npm install -g openrune
+```
 
+---
+
+## 30-Second Harness
+
+```bash
 rune new reviewer --role "Code reviewer, security focused"
 rune run reviewer.rune "Review the latest commit"
 ```
 
-That's it. No SDK, no boilerplate, no config.
+That's it. You just built an agent harness.
 
 ---
 
-## Quick Start
+## Core Concepts
 
-### Prerequisites
-
-- **Node.js** 18+
-- **Claude Code CLI** — `npm install -g @anthropic-ai/claude-code`
-
-### Install
+### One file = one agent
 
 ```bash
-npm install -g openrune
-```
-
-### Create and run agents
-
-```bash
-# Create agents
 rune new architect --role "Software architect"
 rune new coder --role "Backend developer"
 rune new reviewer --role "Code reviewer"
-
-# Run headlessly
-rune run reviewer.rune "Review the latest commit"
-
-# Pipe input
-git diff | rune run reviewer.rune "Review this diff"
-
-# Agent pipeline — architect designs, coder builds (with file creation)
-rune pipe architect.rune coder.rune "Build a REST API with Express" --auto
-
-# Open desktop UI
-rune open reviewer.rune
 ```
 
----
-
-## How It Works
-
-Each `.rune` file is an independent AI agent:
+Each `.rune` file is just JSON — portable, shareable, version-controllable:
 
 ```json
 {
@@ -83,41 +58,30 @@ Each `.rune` file is an independent AI agent:
 }
 ```
 
-- **Portable** — It's just JSON. Commit to git, share with teammates, move between machines.
-- **Persistent** — Role, memory, and chat history live in the file. The agent picks up where it left off.
-- **Independent** — Multiple agents in the same folder, each with their own context.
+### Headless execution
 
----
-
-## Agent Pipeline
-
-Chain agents together. Each agent's output feeds into the next:
+Run agents from the terminal. No GUI needed:
 
 ```bash
-rune pipe architect.rune coder.rune reviewer.rune "Add OAuth2 login flow"
+rune run reviewer.rune "Review the latest commit"
+
+# Pipe input from other commands
+git diff | rune run reviewer.rune "Review this diff"
+
+# JSON output for scripting
+rune run reviewer.rune "Check for security issues" --output json
 ```
 
-architect designs → coder implements → reviewer checks.
+### Autonomous mode
 
-With `--auto`, the last agent can write files and run commands:
+With `--auto`, agents write files, run commands, and fix errors on their own:
 
 ```bash
-rune pipe architect.rune coder.rune "Build a REST API with Express" --auto
+rune run coder.rune "Create an Express server with a /health endpoint. Run npm init and npm install." --auto
 ```
 
----
-
-## Autonomous Mode
-
-`--auto` lets agents write files, run commands, and fix errors on their own:
-
-```bash
-rune run coder.rune "Create a server.js with Express, run npm init and npm install" --auto
 ```
-
-You see every action in real-time:
-```
-🔮 [auto] coder is working on: Create a server.js...
+🔮 [auto] coder is working on: Create an Express server...
 
   ▶ Write: /path/to/server.js
   ▶ Bash: npm init -y
@@ -127,11 +91,23 @@ You see every action in real-time:
 ✓ coder finished
 ```
 
----
+### Agent pipeline
 
-## Automated Triggers
+Chain agents. Each agent's output feeds into the next:
 
-Run agents automatically on events:
+```bash
+rune pipe architect.rune coder.rune "Build a REST API with Express"
+```
+
+With `--auto`, the last agent executes the plan:
+
+```bash
+rune pipe architect.rune coder.rune "Build a REST API with Express" --auto
+```
+
+architect designs → coder implements (writes files, installs deps).
+
+### Automated triggers
 
 ```bash
 # On every git commit
@@ -144,16 +120,13 @@ rune watch linter.rune --on file-change --glob "src/**/*.ts" --prompt "Check for
 rune watch monitor.rune --on cron --interval 5m --prompt "Check server health"
 ```
 
----
-
-## Node.js API
+### Node.js API
 
 Use agents in your own code:
 
 ```js
 const rune = require('openrune')
 
-// Single agent
 const reviewer = rune.load('reviewer.rune')
 const result = await reviewer.send('Review the latest commit')
 
@@ -164,35 +137,72 @@ const { finalOutput } = await rune.pipe(
 )
 ```
 
-Works in Express servers, scripts, CI/CD — anywhere Node.js runs.
+---
+
+## Example: Agent-Powered API Server
+
+A full walkthrough — from zero to a running server built by agents.
+
+### 1. Install and create agents
+
+```bash
+npm install -g openrune
+mkdir my-project && cd my-project
+
+rune new architect --role "Software architect. Design system architecture concisely."
+rune new coder --role "Backend developer. Implement code based on the given plan."
+rune new reviewer --role "Code reviewer. Review for bugs and security issues."
+```
+
+### 2. Agents collaborate to build a server
+
+```bash
+rune pipe architect.rune coder.rune "Design and build an Express server with POST /review endpoint that uses require('openrune') to load reviewer.rune and send the prompt. Run npm init -y and npm install express openrune." --auto
+```
+
+architect designs the architecture → coder writes `server.js`, runs `npm init`, installs dependencies.
+
+### 3. Start the server
+
+```bash
+node server.js
+```
+
+### 4. Call the agent via API
+
+```bash
+curl -X POST http://localhost:3000/review \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Review this project"}'
+```
+
+The reviewer agent analyzes your project and returns a full code review.
+
+### 5. Open the desktop UI
+
+```bash
+rune open reviewer.rune
+```
+
+The conversation history from the API call is already there — context persists across CLI, API, and GUI.
 
 ---
 
 ## Desktop UI
 
-Double-click a `.rune` file or run `rune open` for an interactive chat interface.
+Rune includes an optional desktop app for interactive chat.
 
-- **Real-time activity** — See every tool call, result, and permission request via [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks).
+```bash
+rune open reviewer.rune
+```
+
+Or double-click any `.rune` file in Finder.
+
+- **Real-time activity** — See tool calls, results, and permission requests as they happen.
 - **Built-in terminal** — Claude Code output and your own commands, side by side.
 - **Right-click to create** — macOS Quick Action for creating agents from Finder.
 
-<p align="center">
-  <img src="demo.gif" width="100%" alt="Rune demo" />
-</p>
-
----
-
-## Use Cases
-
-| Scenario | Example |
-|----------|---------|
-| **Code review** | `rune run reviewer.rune "Review the latest commit"` |
-| **Auto review on commit** | `rune watch reviewer.rune --on git-commit --prompt "Review this"` |
-| **Agent pipeline** | `rune pipe architect.rune coder.rune "Build a login page" --auto` |
-| **CI/CD** | `rune run qa.rune "Run tests and report failures" --output json` |
-| **Monitoring** | `rune watch ops.rune --on cron --interval 10m --prompt "Check health"` |
-| **Team sharing** | Commit `.rune` files to git — teammates get the same agents |
-| **Node.js server** | `const rune = require('openrune'); rune.load('agent.rune').send(...)` |
+> If double-click doesn't work, run `rune install` once to register the file association.
 
 ---
 
@@ -209,41 +219,6 @@ Double-click a `.rune` file or run `rune open` for an interactive chat interface
 | `rune install` | Set up file associations & Quick Action |
 
 **Watch events:** `git-commit`, `git-push`, `file-change` (with `--glob`), `cron` (with `--interval`)
-
----
-
-## Architecture
-
-```
-  Harness Mode (rune run / pipe / watch):
-    CLI → Claude Code (-p) → stdout
-    No GUI, no MCP — direct execution with .rune context
-
-  Desktop UI Mode (rune open / double-click):
-    Chat UI (React) ↔ Electron ↔ MCP Channel ↔ Claude Code CLI
-    Real-time hooks for activity monitoring
-```
-
----
-
-## Development
-
-```bash
-git clone https://github.com/gilhyun/Rune.git
-cd Rune
-npm install
-npm start
-```
-
-### Project Structure
-
-```
-bin/rune.js              CLI (new, run, pipe, watch, open, list)
-lib/index.js             Node.js API
-channel/rune-channel.ts  MCP channel + hooks endpoint
-src/main.ts              Electron main process
-renderer/src/            React chat UI + terminal
-```
 
 ---
 

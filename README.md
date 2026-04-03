@@ -57,7 +57,7 @@ Most AI tools lose context when you close the window. Rune doesn't — because y
 ### 1. Install
 
 ```bash
-npm install -g rune
+npm install -g openrune
 ```
 
 ### 2. Create your first agent
@@ -68,6 +68,10 @@ rune new myagent
 ```
 
 Or right-click any folder in Finder → Quick Actions → **New Rune**
+
+<p align="center">
+  <img src="Screenshot.png" width="500" alt="Right-click to create a Rune agent" />
+</p>
 
 ### 3. Open and chat
 

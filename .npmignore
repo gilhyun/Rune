@@ -5,3 +5,8 @@ dist
 *.rune
 renderer/node_modules
 .claude
+demo.gif
+demo.mp4
+Screenshot.png
+rune-logo.png
+test-electron.js

@@ -1,6 +1,6 @@
 {
   "name": "openrune",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Rune — File-based AI Agent Desktop App",
   "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code"],
   "repository": {
@@ -33,6 +33,7 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
+    "@electron/rebuild": "^3.7.1",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@tailwindcss/vite": "^4.2.2",
     "@vitejs/plugin-react": "^6.0.1",

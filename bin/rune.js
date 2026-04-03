@@ -54,7 +54,16 @@ function install() {
     process.exit(1)
   }
 
-  // 2. Store project path for later use
+  // 2. Rebuild native modules for Electron (node-pty)
+  console.log('  Rebuilding native modules for Electron...')
+  try {
+    execSync('npx electron-rebuild -m .', { cwd: projectRoot, stdio: 'inherit' })
+    console.log('  ✅ Native modules rebuilt')
+  } catch (e) {
+    console.error('  ⚠️  electron-rebuild failed (terminal may not work)')
+  }
+
+  // 3. Store project path for later use
   fs.writeFileSync(path.join(RUNE_HOME, 'project-path'), projectRoot)
   console.log(`  ✅ App built at ${projectRoot}`)
 

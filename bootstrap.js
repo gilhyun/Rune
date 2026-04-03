@@ -1,4 +1,8 @@
-// Simple entry point — just load the bundled main process
-// Note: require('electron') works because Electron intercepts
-// the npm package resolution and returns its built-in module
-require('./dist/main.js')
+// When loaded via Electron, start the desktop app
+// When loaded via require('openrune'), export the Node.js API
+try {
+  require('electron')
+  require('./dist/main.js')
+} catch {
+  module.exports = require('./lib/index.js')
+}

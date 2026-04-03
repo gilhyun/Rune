@@ -719,7 +719,7 @@ function runRune(file, restArgs) {
     console.log(`🔮 [auto] ${rune.name} is working on: ${prompt}\n`)
 
     const claudeArgs = ['-p', '--print',
-      '--permission-mode', 'auto',
+      '--dangerously-skip-permissions',
       '--verbose',
       '--output-format', 'stream-json',
     ]

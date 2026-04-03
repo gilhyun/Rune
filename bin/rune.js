@@ -748,6 +748,7 @@ function runRune(file, restArgs) {
     console.log(`🔮 [auto] ${rune.name} is working on: ${prompt}\n`)
 
     const claudeArgs = ['-p', '--print',
+      '--bare',
       '--dangerously-skip-permissions',
       '--verbose',
       '--output-format', 'stream-json',
@@ -834,7 +835,7 @@ function runRune(file, restArgs) {
   }
 
   // Normal mode: print-only, no tool execution
-  const claudeArgs = ['-p', '--print']
+  const claudeArgs = ['-p', '--print', '--bare']
   if (systemPrompt) {
     claudeArgs.push('--system-prompt', systemPrompt)
   }
@@ -945,7 +946,7 @@ async function pipeRunes(args) {
       rune.memory.forEach((m, j) => systemParts.push(`${j + 1}. ${m}`))
     }
 
-    const claudeArgs = ['-p', '--print']
+    const claudeArgs = ['-p', '--print', '--bare']
     if (systemParts.length > 0) {
       claudeArgs.push('--system-prompt', systemParts.join('\n'))
     }
@@ -1057,7 +1058,7 @@ function watchRune(file, restArgs) {
     const systemParts = []
     if (rune.role) systemParts.push(`Your role: ${rune.role}`)
 
-    const claudeArgs = ['-p', '--print']
+    const claudeArgs = ['-p', '--print', '--bare']
     if (systemParts.length > 0) {
       claudeArgs.push('--system-prompt', systemParts.join('\n'))
     }

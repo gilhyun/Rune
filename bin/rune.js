@@ -907,15 +907,18 @@ function runRune(file, restArgs) {
 // ── pipe (agent chaining) ───────────────────────
 
 async function pipeRunes(args) {
-  // Parse: rune pipe agent1.rune agent2.rune ... "initial prompt" [--output json]
+  // Parse: rune pipe agent1.rune agent2.rune ... "initial prompt" [--output json] [--auto]
   const runeFiles = []
   let prompt = ''
   let outputFormat = 'text'
+  let autoMode = false
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--output' && args[i + 1]) {
       outputFormat = args[i + 1]
       i++
+    } else if (args[i] === '--auto') {
+      autoMode = true
     } else if (args[i].endsWith('.rune')) {
       runeFiles.push(args[i])
     } else if (!prompt) {
@@ -924,9 +927,10 @@ async function pipeRunes(args) {
   }
 
   if (runeFiles.length < 2 || !prompt) {
-    console.log('Usage: rune pipe <agent1.rune> <agent2.rune> [...] "initial prompt"')
-    console.log('Example: rune pipe coder.rune reviewer.rune "Implement a login page"')
+    console.log('Usage: rune pipe <agent1.rune> <agent2.rune> [...] "initial prompt" [--auto]')
+    console.log('Example: rune pipe architect.rune coder.rune "Build a REST API" --auto')
     console.log('\nThe output of each agent becomes the input for the next.')
+    console.log('With --auto, the last agent can write files and run commands.')
     process.exit(1)
   }
 
@@ -967,42 +971,119 @@ async function pipeRunes(args) {
       rune.memory.forEach((m, j) => systemParts.push(`${j + 1}. ${m}`))
     }
 
-    const claudeArgs = ['-p', '--print', '--bare']
-    if (systemParts.length > 0) {
-      claudeArgs.push('--system-prompt', systemParts.join('\n'))
-    }
-    claudeArgs.push(pipeContext)
+    // Last agent in auto mode: can write files and run commands
+    const useAuto = autoMode && isLast
 
-    const output = await new Promise((resolve, reject) => {
-      const child = spawn('claude', claudeArgs, {
-        cwd: folderPath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
+    if (useAuto) {
+      // Temporarily hide .mcp.json
+      const mcpPath = path.join(folderPath, '.mcp.json')
+      const mcpBackup = path.join(folderPath, '.mcp.json.pipe.bak')
+      let mcpHidden = false
+      if (fs.existsSync(mcpPath)) {
+        fs.renameSync(mcpPath, mcpBackup)
+        mcpHidden = true
+      }
+
+      const claudeArgs = ['-p', '--print',
+        '--dangerously-skip-permissions',
+        '--verbose',
+        '--output-format', 'stream-json',
+      ]
+      if (systemParts.length > 0) {
+        claudeArgs.push('--system-prompt', systemParts.join('\n'))
+      }
+      claudeArgs.push(pipeContext)
+
+      const output = await new Promise((resolve, reject) => {
+        const child = spawn('claude', claudeArgs, {
+          cwd: folderPath,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: { ...process.env },
+        })
+
+        let fullOutput = ''
+        let buffer = ''
+        child.stdout.on('data', (data) => {
+          buffer += data.toString()
+          const lines = buffer.split('\n')
+          buffer = lines.pop()
+          for (const line of lines) {
+            if (!line.trim()) continue
+            try {
+              const event = JSON.parse(line)
+              if (event.type === 'assistant' && event.message && event.message.content) {
+                for (const block of event.message.content) {
+                  if (block.type === 'tool_use') {
+                    const tool = block.name || 'unknown'
+                    const input = block.input || {}
+                    if (tool === 'Bash') console.log(`  ▶ Bash: ${(input.command || '').slice(0, 120)}`)
+                    else if (tool === 'Write') console.log(`  ▶ Write: ${input.file_path || ''}`)
+                    else if (tool === 'Edit') console.log(`  ▶ Edit: ${input.file_path || ''}`)
+                    else if (tool === 'Read') console.log(`  ▶ Read: ${input.file_path || ''}`)
+                    else console.log(`  ▶ ${tool}`)
+                  } else if (block.type === 'text' && block.text && block.text.trim()) {
+                    console.log(`  💬 ${block.text.trim().slice(0, 200)}`)
+                  }
+                }
+              }
+              if (event.type === 'result') {
+                fullOutput = event.result || ''
+                if (fullOutput) console.log(`\n${fullOutput}`)
+              }
+            } catch {}
+          }
+        })
+        child.stderr.on('data', (d) => { process.stderr.write(d) })
+        child.on('close', (code) => {
+          if (mcpHidden && fs.existsSync(mcpBackup)) fs.renameSync(mcpBackup, mcpPath)
+          if (code !== 0) reject(new Error(`Agent ${rune.name} exited with code ${code}`))
+          else resolve(fullOutput.trim())
+        })
       })
 
-      let stdout = ''
-      let stderr = ''
-      child.stdout.on('data', (d) => { stdout += d.toString() })
-      child.stderr.on('data', (d) => { stderr += d.toString() })
-      child.on('close', (code) => {
-        if (code !== 0) reject(new Error(stderr || `Agent ${rune.name} exited with code ${code}`))
-        else resolve(stdout.trim())
+      results.push({ agent: rune.name, role: rune.role, output })
+      rune.history = rune.history || []
+      rune.history.push({ role: 'user', text: pipeContext, ts: Date.now() })
+      rune.history.push({ role: 'assistant', text: output, ts: Date.now() })
+      fs.writeFileSync(filePath, JSON.stringify(rune, null, 2))
+      currentInput = output
+
+    } else {
+      // Normal pipe step: text output only, run from tmpdir to avoid .mcp.json
+      const os = require('os')
+      const claudeArgs = ['-p', '--print', '--add-dir', folderPath]
+      if (systemParts.length > 0) {
+        claudeArgs.push('--system-prompt', systemParts.join('\n') + `\nWorking folder: ${folderPath}`)
+      }
+      claudeArgs.push('--', pipeContext)
+
+      const output = await new Promise((resolve, reject) => {
+        const child = spawn('claude', claudeArgs, {
+          cwd: os.tmpdir(),
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: { ...process.env },
+        })
+
+        let stdout = ''
+        let stderr = ''
+        child.stdout.on('data', (d) => { stdout += d.toString() })
+        child.stderr.on('data', (d) => { stderr += d.toString() })
+        child.on('close', (code) => {
+          if (code !== 0) reject(new Error(stderr || `Agent ${rune.name} exited with code ${code}`))
+          else resolve(stdout.trim())
+        })
       })
-    })
 
-    results.push({ agent: rune.name, role: rune.role, output })
+      results.push({ agent: rune.name, role: rune.role, output })
+      rune.history = rune.history || []
+      rune.history.push({ role: 'user', text: pipeContext, ts: Date.now() })
+      rune.history.push({ role: 'assistant', text: output, ts: Date.now() })
+      fs.writeFileSync(filePath, JSON.stringify(rune, null, 2))
+      currentInput = output
 
-    // Save to .rune history
-    rune.history = rune.history || []
-    rune.history.push({ role: 'user', text: pipeContext, ts: Date.now() })
-    rune.history.push({ role: 'assistant', text: output, ts: Date.now() })
-    fs.writeFileSync(filePath, JSON.stringify(rune, null, 2))
-
-    currentInput = output
-
-    // Print intermediate output
-    if (outputFormat !== 'json' && !isLast) {
-      console.error(`  ✓ Done\n`)
+      if (outputFormat !== 'json' && !isLast) {
+        console.error(`  ✓ Done\n`)
+      }
     }
   }
 

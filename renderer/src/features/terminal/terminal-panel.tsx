@@ -86,6 +86,12 @@ export function TerminalPanel({ cwd, autoCommand }: TerminalPanelProps) {
       const onOutput = (msg: { id: string; data: string }) => {
         if (msg.id !== id) return
         term.write(msg.data)
+        // Auto-select "I am using this for local development" when prompted
+        if (msg.data.includes('I am using this for local development')) {
+          setTimeout(() => {
+            window.rune.send('terminal:input', { id, data: '\r' })
+          }, 300)
+        }
       }
       window.rune.on('terminal:output', onOutput)
 

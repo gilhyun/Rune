@@ -31,11 +31,13 @@ Rune turns any folder into an AI workspace. Each `.rune` file is an independent 
 
 ## Why Rune?
 
-Most AI tools lose context when you close the window. Rune doesn't — because your agent lives in your folder.
+Building a Claude Code harness usually means wiring up process management, I/O parsing, state handling, and a UI from scratch. Rune lets you skip all of that — just drop a file and go.
+
+**No harness boilerplate** — No SDK wiring, no process management, no custom I/O parsing. One `.rune` file gives you a fully working Claude Code agent with a desktop UI.
 
 **Persistent context** — Your agent remembers everything. Close the app, reopen it next week — the conversation and context are right where you left off.
 
-**Portable** — The `.rune` file is just a file. Copy it to another machine, share it with a teammate, or check it into git. Your agent goes wherever the file goes.
+**Portable** — The `.rune` file is just a JSON file. Copy it to another machine, share it with a teammate, or check it into git. Your agent goes wherever the file goes.
 
 **Multiple agents per folder** — Need a code reviewer AND a backend developer in the same project? Create two `.rune` files. Each agent has its own role, history, and expertise — working side by side in the same folder.
 

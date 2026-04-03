@@ -862,7 +862,7 @@ function runRune(file, restArgs) {
   if (outputFormat === 'json') {
     claudeArgs.push('--output-format', 'json')
   }
-  claudeArgs.push(prompt)
+  claudeArgs.push('--', prompt)
 
   const os = require('os')
   const child = spawn('claude', claudeArgs, {

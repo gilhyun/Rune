@@ -121,6 +121,20 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
             </div>
           )}
 
+          <Toaster
+            position="bottom-center"
+            offset={80}
+            toastOptions={{
+              style: {
+                fontSize: '12px',
+                padding: '8px 14px',
+                background: 'oklch(0.25 0.065 300)',
+                color: 'oklch(0.93 0.015 300)',
+                border: '1px solid oklch(1 0.03 300 / 10%)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              },
+            }}
+          />
           <ChatInput
             isStreaming={chat.isStreaming}
             disabled={!chat.connected}
@@ -129,20 +143,6 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
           />
         </div>
       </div>
-      <Toaster
-        position="bottom-center"
-        offset={140}
-        toastOptions={{
-          style: {
-            fontSize: '12px',
-            padding: '8px 14px',
-            background: 'oklch(0.25 0.065 300)',
-            color: 'oklch(0.93 0.015 300)',
-            border: '1px solid oklch(1 0.03 300 / 10%)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          },
-        }}
-      />
     </div>
   )
 }

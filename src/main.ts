@@ -185,6 +185,9 @@ function connectSSE(port: number) {
                 win.webContents.send('rune:memoryUpdate', { memory: rune.memory || [] })
               }
             }
+            if (data.type === 'hook') {
+              win.webContents.send('rune:hook', { port, ...data })
+            }
             if (data.type === 'session_start') {
               win.webContents.send('rune:sessionStart', { port })
             }

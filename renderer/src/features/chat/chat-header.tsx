@@ -14,14 +14,8 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ name, role, port, showTerminal, onClearHistory, onToggleTerminal }: ChatHeaderProps) {
   const [connected, setConnected] = useState(false)
-  const [permissionNeeded, setPermissionNeeded] = useState(false)
-
   useIPCOn('rune:channelStatus', (data: { port: number; connected: boolean }) => {
     if (data.port === port) setConnected(data.connected)
-  })
-
-  useIPCOn('rune:permissionNeeded', () => {
-    setPermissionNeeded(true)
   })
 
   const dotColor = connected ? 'bg-accent' : 'bg-accent-red'
@@ -42,21 +36,15 @@ export function ChatHeader({ name, role, port, showTerminal, onClearHistory, onT
         {onToggleTerminal && (
           <button
             className={cn(
-              'relative inline-flex items-center justify-center rounded-md h-7 w-7 transition-colors',
+              'inline-flex items-center justify-center rounded-md h-7 w-7 transition-colors',
               showTerminal
                 ? 'text-accent bg-accent/10'
                 : 'text-muted hover:text-foreground hover:bg-border'
             )}
             title="Toggle terminal"
-            onClick={() => {
-              if (permissionNeeded) setPermissionNeeded(false)
-              onToggleTerminal?.()
-            }}
+            onClick={() => onToggleTerminal?.()}
           >
             <SquareTerminal className="h-3.5 w-3.5" />
-            {permissionNeeded && !showTerminal && (
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent-red animate-pulse" />
-            )}
           </button>
         )}
         <button

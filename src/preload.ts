@@ -11,6 +11,7 @@ const onAllowed = [
   'rune:memoryUpdate',
   'rune:sessionStart',
   'rune:permissionNeeded',
+  'rune:hook',
   'terminal:output', 'terminal:exit',
 ]
 

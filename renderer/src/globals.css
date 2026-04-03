@@ -86,3 +86,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 .activity-thinking { border-left: 2px solid oklch(0.65 0.15 300); background: oklch(0.65 0.15 300 / 4%); }
 .activity-tool-use { border-left: 2px solid oklch(0.777 0.152 181.912); background: oklch(0.777 0.152 181.912 / 4%); }
 .activity-tool-result { border-left: 2px solid oklch(0.65 0.15 155); background: oklch(0.65 0.15 155 / 4%); }
+
+/* ── Sonner Toast ─────────────────────────────────── */
+[data-sonner-toaster] { pointer-events: none !important; }
+[data-sonner-toast] { pointer-events: auto !important; }

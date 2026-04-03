@@ -138,6 +138,47 @@ export function useChat() {
     }))
   })
 
+  // Handle Claude Code hook events
+  useIPCOn('rune:hook', (data: { event: string; tool_name?: string; tool_input?: Record<string, unknown>; tool_output?: string; prompt?: string; permission_prompt_reason?: string; notification_type?: string; message?: string }) => {
+    let block: ContentBlock | null = null
+
+    if (data.event === 'PreToolUse' && data.tool_name) {
+      block = {
+        type: 'tool_use',
+        tool: data.tool_name,
+        args: data.tool_input,
+        ts: Date.now(),
+      }
+    } else if (data.event === 'PostToolUse' && data.tool_name) {
+      block = {
+        type: 'tool_result',
+        tool: data.tool_name,
+        content: data.tool_output ? (data.tool_output.length > 500 ? data.tool_output.slice(0, 500) + '…' : data.tool_output) : 'done',
+        ts: Date.now(),
+      }
+    } else if (data.event === 'PermissionRequest') {
+      block = {
+        type: 'thinking',
+        content: `⚠️ Permission needed: ${data.tool_name} — ${data.permission_prompt_reason || ''}`,
+        tool: data.tool_name,
+        ts: Date.now(),
+      }
+    } else if (data.event === 'Notification') {
+      block = {
+        type: 'thinking',
+        content: `📢 ${data.message || data.notification_type || 'notification'}`,
+        ts: Date.now(),
+      }
+    }
+
+    if (block) {
+      setState(prev => ({
+        ...prev,
+        activityBlocks: [...prev.activityBlocks, block!],
+      }))
+    }
+  })
+
   // Handle file rename
   useIPCOn('rune:fileRenamed', (data: { name: string; newPath: string }) => {
     setRuneInfo(prev => prev ? { ...prev, name: data.name, filePath: data.newPath } : prev)

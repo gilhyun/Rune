@@ -309,6 +309,22 @@ async function main() {
   let reqId = 0
 
   const server = http.createServer(async (req, res) => {
+    // Hook events from Claude Code hooks system
+    if (req.method === 'POST' && req.url === '/hook') {
+      let body = ''
+      for await (const chunk of req) body += chunk
+      try {
+        const hookData = JSON.parse(body)
+        console.error(`[rune-channel] hook: ${hookData.hook_event_name} ${hookData.tool_name || ''}`)
+        broadcastSSE({ type: 'hook', event: hookData.hook_event_name, ...hookData })
+      } catch (e: any) {
+        console.error(`[rune-channel] hook parse error: ${e.message}`)
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end('{"status":"ok"}')
+      return
+    }
+
     // SSE endpoint
     if (req.method === 'GET' && req.url === '/sse') {
       res.writeHead(200, {

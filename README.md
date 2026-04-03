@@ -17,10 +17,19 @@
 
 ---
 
+## Prerequisites
+
+- **Node.js** 18+
+- **Claude Code CLI** installed and logged in — Rune uses Claude Code under the hood for all agent execution
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude                                       # login if you haven't
+```
+
 ## Install
 
 ```bash
-npm install -g @anthropic-ai/claude-code   # prerequisite
 npm install -g openrune
 ```
 
@@ -122,7 +131,7 @@ rune watch monitor.rune --on cron --interval 5m --prompt "Check server health"
 
 ### Node.js API
 
-Use agents in your own code:
+Use agents in your own code. Each `.send()` call spawns a Claude Code process, so Claude Code CLI must be installed and logged in on the machine.
 
 ```js
 const rune = require('openrune')

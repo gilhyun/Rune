@@ -70,6 +70,7 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
             <TerminalPanel
               cwd={chat.runeInfo.folderPath}
               autoCommand={channelCommand}
+              visible={showTerminal}
             />
           </div>
         )}

@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css'
 interface TerminalPanelProps {
   cwd?: string
   autoCommand?: string
+  visible?: boolean
 }
 
 const THEME = {
@@ -32,7 +33,7 @@ const THEME = {
   brightWhite: '#ffffff',
 }
 
-export function TerminalPanel({ cwd, autoCommand }: TerminalPanelProps) {
+export function TerminalPanel({ cwd, autoCommand, visible }: TerminalPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -127,6 +128,22 @@ export function TerminalPanel({ cwd, autoCommand }: TerminalPanelProps) {
       term.dispose()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fit terminal when visibility changes
+  useEffect(() => {
+    if (visible && fitRef.current && termRef.current) {
+      requestAnimationFrame(() => {
+        fitRef.current?.fit()
+        if (ptyIdRef.current) {
+          window.rune.send('terminal:resize', {
+            id: ptyIdRef.current,
+            cols: termRef.current!.cols,
+            rows: termRef.current!.rows,
+          })
+        }
+      })
+    }
+  }, [visible])
 
   return (
     <div

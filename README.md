@@ -118,6 +118,23 @@ rune run reviewer.rune "Review this project" --auto --log review.json
 }
 ```
 
+### Self-spawning agents
+
+An agent can create and coordinate other agents on its own:
+
+```bash
+rune new manager --role "Project manager. Create agents with rune new and coordinate them with rune pipe."
+rune run manager.rune "Create a summarizer and a translator agent, then pipe them to summarize and translate this news article into Korean." --auto
+```
+
+The manager will:
+1. Run `rune new summarizer --role "..."` 
+2. Run `rune new translator --role "..."`
+3. Run `rune pipe summarizer.rune translator.rune "..."`
+4. If something fails, debug and fix it autonomously
+
+Agents creating agents. No human intervention.
+
 ### Headless execution
 
 Run agents from the terminal. No GUI needed:

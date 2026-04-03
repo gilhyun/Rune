@@ -92,6 +92,34 @@ rune run myagent.rune "Explain this project's architecture"
 
 ---
 
+## Use Cases
+
+**Solo dev workflow** — Create `reviewer.rune` and `coder.rune` in your project. Use one to write code, the other to review it. Each agent keeps its own context and history.
+
+**Automated code review** — Set up a trigger to review every commit automatically:
+```bash
+rune watch reviewer.rune --on git-commit --prompt "Review this commit for bugs and security issues"
+```
+
+**CI/CD integration** — Run agents headlessly in your pipeline:
+```bash
+rune run qa.rune "Run tests and report any failures" --output json
+```
+
+**Agent pipeline** — Chain specialized agents for complex tasks:
+```bash
+rune pipe architect.rune coder.rune reviewer.rune "Add OAuth2 login flow"
+```
+
+**Team collaboration** — Commit `.rune` files to git. Your teammates get the same agent with the same role and memory — no setup needed.
+
+**Monitoring** — Schedule an agent to check things periodically:
+```bash
+rune watch ops.rune --on cron --interval 10m --prompt "Check if the API is healthy"
+```
+
+---
+
 ## Features
 
 ### Harness

@@ -18,7 +18,7 @@
 ---
 
 <p align="center">
-  <video src="demo.mp4" width="100%" autoplay loop muted playsinline></video>
+  <img src="demo.gif" width="100%" alt="Rune demo" />
 </p>
 
 ---

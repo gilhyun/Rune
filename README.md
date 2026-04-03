@@ -5,7 +5,7 @@
 <h1 align="center">Rune</h1>
 
 <p align="center">
-  <strong>File-based AI Agent Desktop App</strong><br/>
+  <strong>File-based AI Agent Desktop App for Claude Code</strong><br/>
   Drop a <code>.rune</code> file in any folder. Double-click to open. Chat with your AI agent.
 </p>
 

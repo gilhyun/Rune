@@ -17,12 +17,6 @@
 
 ---
 
-<p align="center">
-  <img src="demo.gif" width="100%" alt="Rune demo" />
-</p>
-
----
-
 ## What is Rune?
 
 Rune turns any folder into an AI workspace. Each `.rune` file is an independent AI agent with its own chat history, role, and context — all powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
@@ -46,6 +40,10 @@ Most AI tools lose context when you close the window. Rune doesn't — because y
 **Multiple agents per folder** — Need a code reviewer AND a backend developer in the same project? Create two `.rune` files. Each agent has its own role, history, and expertise — working side by side in the same folder.
 
 **No setup per project** — No config files, no extensions, no workspace settings. Drop a `.rune` file and you're ready.
+
+<p align="center">
+  <img src="demo.gif" width="100%" alt="Rune demo" />
+</p>
 
 ---
 

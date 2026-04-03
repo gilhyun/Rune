@@ -5,8 +5,8 @@
 <h1 align="center">Rune</h1>
 
 <p align="center">
-  <strong>File-based AI Agent Desktop App for Claude Code</strong><br/>
-  Drop a <code>.rune</code> file in any folder. Double-click to open. Chat with your AI agent.
+  <strong>File-based AI Agent Harness for Claude Code</strong><br/>
+  Drop a <code>.rune</code> file in any folder. Run it headlessly, chain agents, or open the desktop UI.
 </p>
 
 <p align="center">
@@ -146,9 +146,75 @@ Edit the `role` field anytime to change the agent's behavior.
 | `rune install` | Build app, register file association, install Quick Action |
 | `rune new <name>` | Create a `.rune` file in the current directory |
 | `rune new <name> --role "..."` | Create with a custom role |
-| `rune open <file.rune>` | Open a `.rune` file |
+| `rune open <file.rune>` | Open a `.rune` file (desktop GUI) |
+| `rune run <file.rune> "prompt"` | Run agent headlessly (no GUI) |
+| `rune pipe <a.rune> <b.rune> "prompt"` | Chain agents in a pipeline |
+| `rune watch <file.rune> --on <event>` | Set up automated triggers |
 | `rune list` | List `.rune` files in the current directory |
 | `rune uninstall` | Remove Rune integration (keeps your `.rune` files) |
+
+---
+
+## Harness Mode
+
+Rune isn't just a desktop app — it's a full agent harness. Use it from scripts, CI/CD, or your own tools.
+
+### Headless execution
+
+Run any `.rune` agent from the command line without opening the GUI:
+
+```bash
+rune run reviewer.rune "Review the latest commit"
+
+# Pipe input from other commands
+git diff | rune run reviewer.rune "Review this diff"
+
+# JSON output for scripting
+rune run reviewer.rune "Review src/auth.ts" --output json
+```
+
+### Agent chaining
+
+Chain multiple agents into a pipeline. The output of each agent becomes the input for the next:
+
+```bash
+rune pipe coder.rune reviewer.rune tester.rune "Implement a login page"
+```
+
+This runs: coder writes the code → reviewer reviews it → tester writes tests.
+
+### Automated triggers
+
+Set agents to run automatically on events:
+
+```bash
+# Run on every git commit
+rune watch reviewer.rune --on git-commit --prompt "Review this commit"
+
+# Watch for file changes
+rune watch linter.rune --on file-change --glob "src/**/*.ts" --prompt "Check for issues"
+
+# Run on a schedule
+rune watch monitor.rune --on cron --interval 5m --prompt "Check server health"
+```
+
+### Node.js API
+
+Use Rune agents programmatically in your own code:
+
+```js
+const rune = require('openrune')
+
+const reviewer = rune.load('reviewer.rune')
+const result = await reviewer.send('Review the latest commit')
+console.log(result)
+
+// Agent chaining via API
+const { finalOutput } = await rune.pipe(
+  ['coder.rune', 'reviewer.rune'],
+  'Implement a login page'
+)
+```
 
 ---
 

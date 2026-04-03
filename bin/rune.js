@@ -29,6 +29,9 @@ switch (command) {
   case 'install': return install()
   case 'new':     return createRune(args[0], args)
   case 'open':    return openRune(args[0])
+  case 'run':     return runRune(args[0], args.slice(1))
+  case 'pipe':    return pipeRunes(args)
+  case 'watch':   return watchRune(args[0], args.slice(1))
   case 'list':    return listRunes()
   case 'uninstall': return uninstall()
   case 'help':
@@ -649,6 +652,421 @@ function openRune(file) {
   child.unref()
 }
 
+// ── run (headless) ──────────────────────────────
+
+function runRune(file, restArgs) {
+  if (!file) {
+    console.log('Usage: rune run <file.rune> "prompt" [--output json|text]')
+    console.log('Example: rune run reviewer.rune "Review the latest commit"')
+    process.exit(1)
+  }
+
+  const filePath = path.resolve(process.cwd(), file)
+  if (!fs.existsSync(filePath)) {
+    console.error(`  ❌ File not found: ${filePath}`)
+    process.exit(1)
+  }
+
+  // Parse args: prompt and flags
+  let prompt = ''
+  let outputFormat = 'text'
+  for (let i = 0; i < restArgs.length; i++) {
+    if (restArgs[i] === '--output' && restArgs[i + 1]) {
+      outputFormat = restArgs[i + 1]
+      i++
+    } else if (!prompt) {
+      prompt = restArgs[i]
+    }
+  }
+
+  // Read from stdin if no prompt provided
+  if (!prompt && process.stdin.isTTY === false) {
+    prompt = fs.readFileSync('/dev/stdin', 'utf-8').trim()
+  }
+
+  if (!prompt) {
+    console.error('  ❌ No prompt provided. Pass a prompt string or pipe via stdin.')
+    process.exit(1)
+  }
+
+  const rune = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  const folderPath = path.dirname(filePath)
+
+  // Build system prompt from .rune context
+  const systemParts = []
+  if (rune.role) systemParts.push(`Your role: ${rune.role}`)
+  if (rune.memory && rune.memory.length > 0) {
+    systemParts.push('Saved memory from previous sessions:')
+    rune.memory.forEach((m, i) => systemParts.push(`${i + 1}. ${m}`))
+  }
+  if (rune.history && rune.history.length > 0) {
+    const recent = rune.history.slice(-10)
+    systemParts.push(`\nRecent conversation (${rune.history.length} total, showing last ${recent.length}):`)
+    for (const msg of recent) {
+      const who = msg.role === 'user' ? 'User' : 'Assistant'
+      systemParts.push(`${who}: ${msg.text}`)
+    }
+  }
+
+  const systemPrompt = systemParts.join('\n')
+
+  // Build claude CLI args
+  const claudeArgs = ['-p', '--print']
+  if (systemPrompt) {
+    claudeArgs.push('--system-prompt', systemPrompt)
+  }
+  if (outputFormat === 'json') {
+    claudeArgs.push('--output-format', 'json')
+  }
+  claudeArgs.push(prompt)
+
+  const child = spawn('claude', claudeArgs, {
+    cwd: folderPath,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: { ...process.env },
+  })
+
+  let stdout = ''
+  let stderr = ''
+
+  child.stdout.on('data', (data) => {
+    const text = data.toString()
+    stdout += text
+    if (outputFormat !== 'json') process.stdout.write(text)
+  })
+  child.stderr.on('data', (data) => { stderr += data.toString() })
+
+  child.on('close', (code) => {
+    if (outputFormat === 'json') {
+      try {
+        const parsed = JSON.parse(stdout)
+        console.log(JSON.stringify({ agent: rune.name, role: rune.role, response: parsed }, null, 2))
+      } catch {
+        console.log(JSON.stringify({ agent: rune.name, role: rune.role, response: stdout.trim() }, null, 2))
+      }
+    }
+
+    // Save to history
+    rune.history = rune.history || []
+    rune.history.push({ role: 'user', text: prompt, ts: Date.now() })
+    rune.history.push({ role: 'assistant', text: stdout.trim(), ts: Date.now() })
+    fs.writeFileSync(filePath, JSON.stringify(rune, null, 2))
+
+    if (code !== 0 && stderr) {
+      console.error(stderr)
+    }
+    process.exit(code || 0)
+  })
+}
+
+// ── pipe (agent chaining) ───────────────────────
+
+async function pipeRunes(args) {
+  // Parse: rune pipe agent1.rune agent2.rune ... "initial prompt" [--output json]
+  const runeFiles = []
+  let prompt = ''
+  let outputFormat = 'text'
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--output' && args[i + 1]) {
+      outputFormat = args[i + 1]
+      i++
+    } else if (args[i].endsWith('.rune')) {
+      runeFiles.push(args[i])
+    } else if (!prompt) {
+      prompt = args[i]
+    }
+  }
+
+  if (runeFiles.length < 2 || !prompt) {
+    console.log('Usage: rune pipe <agent1.rune> <agent2.rune> [...] "initial prompt"')
+    console.log('Example: rune pipe coder.rune reviewer.rune "Implement a login page"')
+    console.log('\nThe output of each agent becomes the input for the next.')
+    process.exit(1)
+  }
+
+  // Read from stdin if no prompt
+  if (!prompt && process.stdin.isTTY === false) {
+    prompt = fs.readFileSync('/dev/stdin', 'utf-8').trim()
+  }
+
+  let currentInput = prompt
+  const results = []
+
+  for (let i = 0; i < runeFiles.length; i++) {
+    const file = runeFiles[i]
+    const filePath = path.resolve(process.cwd(), file)
+
+    if (!fs.existsSync(filePath)) {
+      console.error(`  ❌ File not found: ${filePath}`)
+      process.exit(1)
+    }
+
+    const rune = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+    const folderPath = path.dirname(filePath)
+
+    const isLast = i === runeFiles.length - 1
+    const pipeContext = i > 0
+      ? `You are step ${i + 1} of ${runeFiles.length} in a pipeline. The previous agent (${results[i-1].agent}) produced the following output:\n\n${currentInput}\n\nNow do your part:`
+      : currentInput
+
+    if (outputFormat !== 'json') {
+      console.error(`\n  ▶ [${i + 1}/${runeFiles.length}] ${rune.name} (${rune.role || 'assistant'})`)
+    }
+
+    // Build system prompt
+    const systemParts = []
+    if (rune.role) systemParts.push(`Your role: ${rune.role}`)
+    if (rune.memory && rune.memory.length > 0) {
+      systemParts.push('Saved memory:')
+      rune.memory.forEach((m, j) => systemParts.push(`${j + 1}. ${m}`))
+    }
+
+    const claudeArgs = ['-p', '--print']
+    if (systemParts.length > 0) {
+      claudeArgs.push('--system-prompt', systemParts.join('\n'))
+    }
+    claudeArgs.push(pipeContext)
+
+    const output = await new Promise((resolve, reject) => {
+      const child = spawn('claude', claudeArgs, {
+        cwd: folderPath,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env },
+      })
+
+      let stdout = ''
+      let stderr = ''
+      child.stdout.on('data', (d) => { stdout += d.toString() })
+      child.stderr.on('data', (d) => { stderr += d.toString() })
+      child.on('close', (code) => {
+        if (code !== 0) reject(new Error(stderr || `Agent ${rune.name} exited with code ${code}`))
+        else resolve(stdout.trim())
+      })
+    })
+
+    results.push({ agent: rune.name, role: rune.role, output })
+
+    // Save to .rune history
+    rune.history = rune.history || []
+    rune.history.push({ role: 'user', text: pipeContext, ts: Date.now() })
+    rune.history.push({ role: 'assistant', text: output, ts: Date.now() })
+    fs.writeFileSync(filePath, JSON.stringify(rune, null, 2))
+
+    currentInput = output
+
+    // Print intermediate output
+    if (outputFormat !== 'json' && !isLast) {
+      console.error(`  ✓ Done\n`)
+    }
+  }
+
+  // Final output
+  if (outputFormat === 'json') {
+    console.log(JSON.stringify({ pipeline: results, finalOutput: currentInput }, null, 2))
+  } else {
+    console.log(currentInput)
+  }
+}
+
+// ── watch (triggers) ────────────────────────────
+
+function watchRune(file, restArgs) {
+  if (!file) {
+    console.log('Usage: rune watch <file.rune> --on <event> [options]')
+    console.log('')
+    console.log('Events:')
+    console.log('  file-change    Watch for file changes in the project folder')
+    console.log('  git-push       Run after git push (installs a git hook)')
+    console.log('  git-commit     Run after git commit (installs a git hook)')
+    console.log('  cron           Run on a schedule (e.g. --interval 5m)')
+    console.log('')
+    console.log('Options:')
+    console.log('  --prompt "..."       The prompt to send when triggered')
+    console.log('  --glob "*.ts"        File pattern to watch (for file-change)')
+    console.log('  --interval 5m        Interval for cron (e.g. 30s, 5m, 1h)')
+    console.log('')
+    console.log('Examples:')
+    console.log('  rune watch reviewer.rune --on file-change --glob "src/**/*.ts" --prompt "Review changed files"')
+    console.log('  rune watch reviewer.rune --on git-commit --prompt "Review this commit"')
+    console.log('  rune watch monitor.rune --on cron --interval 5m --prompt "Check server status"')
+    process.exit(1)
+  }
+
+  const filePath = path.resolve(process.cwd(), file)
+  if (!fs.existsSync(filePath)) {
+    console.error(`  ❌ File not found: ${filePath}`)
+    process.exit(1)
+  }
+
+  // Parse args
+  let event = ''
+  let prompt = ''
+  let glob = ''
+  let interval = '5m'
+
+  for (let i = 0; i < restArgs.length; i++) {
+    if (restArgs[i] === '--on' && restArgs[i + 1]) { event = restArgs[++i] }
+    else if (restArgs[i] === '--prompt' && restArgs[i + 1]) { prompt = restArgs[++i] }
+    else if (restArgs[i] === '--glob' && restArgs[i + 1]) { glob = restArgs[++i] }
+    else if (restArgs[i] === '--interval' && restArgs[i + 1]) { interval = restArgs[++i] }
+  }
+
+  if (!event) {
+    console.error('  ❌ --on <event> is required')
+    process.exit(1)
+  }
+
+  if (!prompt) {
+    console.error('  ❌ --prompt is required')
+    process.exit(1)
+  }
+
+  const rune = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  const folderPath = path.dirname(filePath)
+
+  function triggerRun(triggerInfo) {
+    const fullPrompt = triggerInfo
+      ? `[Triggered by: ${triggerInfo}]\n\n${prompt}`
+      : prompt
+    console.log(`\n🔮 [${new Date().toLocaleTimeString()}] Triggered: ${rune.name} — ${triggerInfo || event}`)
+
+    const systemParts = []
+    if (rune.role) systemParts.push(`Your role: ${rune.role}`)
+
+    const claudeArgs = ['-p', '--print']
+    if (systemParts.length > 0) {
+      claudeArgs.push('--system-prompt', systemParts.join('\n'))
+    }
+    claudeArgs.push(fullPrompt)
+
+    const child = spawn('claude', claudeArgs, {
+      cwd: folderPath,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env },
+    })
+
+    let stdout = ''
+    child.stdout.on('data', (d) => {
+      const text = d.toString()
+      stdout += text
+      process.stdout.write(text)
+    })
+    child.stderr.on('data', (d) => { process.stderr.write(d) })
+    child.on('close', () => {
+      // Save to history
+      const fresh = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+      fresh.history = fresh.history || []
+      fresh.history.push({ role: 'user', text: fullPrompt, ts: Date.now() })
+      fresh.history.push({ role: 'assistant', text: stdout.trim(), ts: Date.now() })
+      fs.writeFileSync(filePath, JSON.stringify(fresh, null, 2))
+      console.log(`\n✓ Done`)
+    })
+  }
+
+  // ── Event handlers ──
+
+  if (event === 'file-change') {
+    const watchDir = folderPath
+    console.log(`🔮 Watching ${watchDir} for file changes...`)
+    if (glob) console.log(`   Pattern: ${glob}`)
+    console.log(`   Agent: ${rune.name} (${rune.role || 'assistant'})`)
+    console.log('   Press Ctrl+C to stop\n')
+
+    let debounce = null
+    fs.watch(watchDir, { recursive: true }, (eventType, filename) => {
+      if (!filename) return
+      if (filename.endsWith('.rune')) return  // ignore .rune file changes
+      if (filename.startsWith('.git')) return
+      if (filename.includes('node_modules')) return
+
+      // Simple glob matching
+      if (glob) {
+        const ext = glob.replace('*', '')
+        if (!filename.endsWith(ext) && !filename.includes(glob.replace('*', ''))) return
+      }
+
+      // Debounce: wait 1s after last change
+      if (debounce) clearTimeout(debounce)
+      debounce = setTimeout(() => {
+        triggerRun(`file changed: ${filename}`)
+      }, 1000)
+    })
+  }
+
+  else if (event === 'git-commit' || event === 'git-push') {
+    const hookName = event === 'git-commit' ? 'post-commit' : 'post-push'
+    const gitDir = path.join(folderPath, '.git', 'hooks')
+
+    if (!fs.existsSync(path.join(folderPath, '.git'))) {
+      console.error('  ❌ Not a git repository')
+      process.exit(1)
+    }
+
+    ensureDir(gitDir)
+
+    // For git-push, use pre-push since post-push doesn't exist natively
+    const actualHook = event === 'git-push' ? 'pre-push' : 'post-commit'
+    const hookPath = path.join(gitDir, actualHook)
+    const runeBin = path.resolve(__dirname, 'rune.js')
+    const nodebin = process.execPath
+
+    const hookScript = `#!/bin/bash
+# Rune auto-trigger: ${rune.name}
+"${nodebin}" "${runeBin}" run "${filePath}" "${prompt.replace(/"/g, '\\"')}" &
+`
+
+    // Append if hook exists, create if not
+    if (fs.existsSync(hookPath)) {
+      const existing = fs.readFileSync(hookPath, 'utf-8')
+      if (!existing.includes('Rune auto-trigger')) {
+        fs.appendFileSync(hookPath, '\n' + hookScript)
+      } else {
+        console.log(`  ⚠️  Rune hook already installed in ${actualHook}`)
+        return
+      }
+    } else {
+      fs.writeFileSync(hookPath, hookScript, { mode: 0o755 })
+    }
+
+    console.log(`🔮 Git hook installed: ${actualHook}`)
+    console.log(`   Agent: ${rune.name} will run on every ${event.replace('git-', '')}`)
+    console.log(`   Prompt: "${prompt}"`)
+    console.log(`   Hook: ${hookPath}`)
+  }
+
+  else if (event === 'cron') {
+    const ms = parseInterval(interval)
+    console.log(`🔮 Running ${rune.name} every ${interval}`)
+    console.log(`   Prompt: "${prompt}"`)
+    console.log('   Press Ctrl+C to stop\n')
+
+    // Run immediately, then on interval
+    triggerRun(`cron (every ${interval})`)
+    setInterval(() => {
+      triggerRun(`cron (every ${interval})`)
+    }, ms)
+  }
+
+  else {
+    console.error(`  ❌ Unknown event: ${event}. Use: file-change, git-commit, git-push, cron`)
+    process.exit(1)
+  }
+}
+
+function parseInterval(str) {
+  const match = str.match(/^(\d+)(s|m|h)$/)
+  if (!match) {
+    console.error(`  ❌ Invalid interval: ${str}. Use format like 30s, 5m, 1h`)
+    process.exit(1)
+  }
+  const num = parseInt(match[1])
+  const unit = match[2]
+  if (unit === 's') return num * 1000
+  if (unit === 'm') return num * 60 * 1000
+  if (unit === 'h') return num * 60 * 60 * 1000
+}
+
 // ── list ─────────────────────────────────────────
 
 function listRunes() {
@@ -707,21 +1125,32 @@ function uninstall() {
 
 function showHelp() {
   console.log(`
-🔮 Rune — File-based AI Agent
+🔮 Rune — File-based AI Agent Harness
 
 Usage:
   rune install              Install Rune (build app, register file association, add Quick Action)
   rune new <name>           Create a new .rune file in current directory
     --role "description"    Set the agent's role
-  rune open <file.rune>     Open a .rune file
+  rune open <file.rune>     Open a .rune file (desktop GUI)
+  rune run <file.rune> "prompt"   Run agent headlessly (no GUI)
+    --output json|text      Output format (default: text)
+  rune pipe <a.rune> <b.rune> ... "prompt"   Chain agents in a pipeline
+    --output json|text      Output format (default: text)
+  rune watch <file.rune>    Set up automated triggers
+    --on <event>            Event: file-change, git-commit, git-push, cron
+    --prompt "..."          Prompt to send when triggered
+    --glob "*.ts"           File pattern (for file-change)
+    --interval 5m           Schedule interval (for cron: 30s, 5m, 1h)
   rune list                 List .rune files in current directory
   rune uninstall            Remove Rune integration (keeps .rune files)
   rune help                 Show this help
 
 Examples:
-  rune new designer --role "UI/UX design expert"
-  rune new backend --role "Backend developer, Node.js specialist"
-  rune open designer.rune
-  rune list
+  rune new reviewer --role "Code reviewer, security focused"
+  rune run reviewer.rune "Review the latest commit"
+  rune pipe coder.rune reviewer.rune "Implement a login page"
+  rune watch reviewer.rune --on git-commit --prompt "Review this commit"
+  rune watch monitor.rune --on cron --interval 5m --prompt "Check server health"
+  echo "Fix the bug in auth.ts" | rune run backend.rune
 `)
 }

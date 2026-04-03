@@ -50,15 +50,34 @@ function buildSessionContext(): string {
     rune.memory.forEach((m, i) => parts.push(`${i + 1}. ${m}`))
   }
 
-  // History summary (last 20 messages condensed)
+  // History: last 50 messages, recent 10 in full detail
   if (rune.history && rune.history.length > 0) {
-    const recent = rune.history.slice(-20)
-    parts.push('\n## Recent Conversation History')
+    const TOTAL_LIMIT = 50
+    const FULL_DETAIL_COUNT = 10
+    const recent = rune.history.slice(-TOTAL_LIMIT)
+    const olderMessages = recent.slice(0, -FULL_DETAIL_COUNT)
+    const recentMessages = recent.slice(-FULL_DETAIL_COUNT)
+
+    parts.push('\n## Conversation History')
     parts.push(`(${rune.history.length} total messages, showing last ${recent.length})`)
-    for (const msg of recent) {
-      const who = msg.role === 'user' ? 'User' : 'You'
-      const text = msg.text.length > 200 ? msg.text.slice(0, 200) + '...' : msg.text
-      parts.push(`- **${who}**: ${text}`)
+
+    // Older messages: summarized (truncated to 500 chars)
+    if (olderMessages.length > 0) {
+      parts.push('\n### Earlier Context')
+      for (const msg of olderMessages) {
+        const who = msg.role === 'user' ? 'User' : 'You'
+        const text = msg.text.length > 500 ? msg.text.slice(0, 500) + '...' : msg.text
+        parts.push(`- **${who}**: ${text}`)
+      }
+    }
+
+    // Recent messages: full text (no truncation)
+    if (recentMessages.length > 0) {
+      parts.push('\n### Recent Messages (Full Detail)')
+      for (const msg of recentMessages) {
+        const who = msg.role === 'user' ? 'User' : 'You'
+        parts.push(`- **${who}**: ${msg.text}`)
+      }
     }
   }
 

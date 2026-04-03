@@ -1,6 +1,6 @@
 {
   "name": "openrune",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Rune — File-based AI Agent Desktop App",
   "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code"],
   "repository": {

@@ -63,10 +63,10 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
         onClearHistory={chat.clearHistory}
         onToggleTerminal={onToggleTerminal}
       />
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 relative">
         {/* Terminal */}
         {chat.runeInfo && (
-          <div className={showTerminal ? 'z-10' : 'invisible'}>
+          <div className={showTerminal ? 'absolute inset-0 z-10' : 'absolute inset-0 invisible'} style={{ top: 0, left: 0, right: 0, bottom: 0 }}>
             <TerminalPanel
               cwd={chat.runeInfo.folderPath}
               autoCommand={channelCommand}

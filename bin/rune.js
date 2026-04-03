@@ -656,8 +656,9 @@ function openRune(file) {
 
 function runRune(file, restArgs) {
   if (!file) {
-    console.log('Usage: rune run <file.rune> "prompt" [--output json|text]')
+    console.log('Usage: rune run <file.rune> "prompt" [--auto] [--output json|text]')
     console.log('Example: rune run reviewer.rune "Review the latest commit"')
+    console.log('         rune run coder.rune "Build a REST API server" --auto')
     process.exit(1)
   }
 
@@ -670,10 +671,13 @@ function runRune(file, restArgs) {
   // Parse args: prompt and flags
   let prompt = ''
   let outputFormat = 'text'
+  let autoMode = false
   for (let i = 0; i < restArgs.length; i++) {
     if (restArgs[i] === '--output' && restArgs[i + 1]) {
       outputFormat = restArgs[i + 1]
       i++
+    } else if (restArgs[i] === '--auto') {
+      autoMode = true
     } else if (!prompt) {
       prompt = restArgs[i]
     }
@@ -710,7 +714,76 @@ function runRune(file, restArgs) {
 
   const systemPrompt = systemParts.join('\n')
 
-  // Build claude CLI args
+  // Auto mode: agent can read/write files, run commands, fix errors autonomously
+  if (autoMode) {
+    console.log(`🔮 [auto] ${rune.name} is working on: ${prompt}\n`)
+
+    const claudeArgs = ['-p', '--print',
+      '--permission-mode', 'auto',
+      '--output-format', 'stream-json',
+      '--include-hook-events',
+    ]
+    if (systemPrompt) {
+      claudeArgs.push('--system-prompt', systemPrompt)
+    }
+    claudeArgs.push(prompt)
+
+    const child = spawn('claude', claudeArgs, {
+      cwd: folderPath,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env },
+    })
+
+    let fullOutput = ''
+
+    child.stdout.on('data', (data) => {
+      const lines = data.toString().split('\n').filter(Boolean)
+      for (const line of lines) {
+        try {
+          const event = JSON.parse(line)
+
+          if (event.type === 'assistant' && event.subtype === 'tool_use') {
+            const tool = event.tool_name || event.name || 'unknown'
+            const input = event.input || {}
+            if (tool === 'Bash') {
+              console.log(`  ▶ Bash: ${(input.command || '').slice(0, 120)}`)
+            } else if (tool === 'Write') {
+              console.log(`  ▶ Write: ${input.file_path || ''}`)
+            } else if (tool === 'Edit') {
+              console.log(`  ▶ Edit: ${input.file_path || ''}`)
+            } else if (tool === 'Read') {
+              console.log(`  ▶ Read: ${input.file_path || ''}`)
+            } else {
+              console.log(`  ▶ ${tool}`)
+            }
+          }
+
+          if (event.type === 'result') {
+            fullOutput = event.result || ''
+            console.log(`\n${fullOutput}`)
+          }
+        } catch {}
+      }
+    })
+
+    child.stderr.on('data', (d) => { process.stderr.write(d) })
+
+    child.on('close', (code) => {
+      // Save to history
+      rune.history = rune.history || []
+      rune.history.push({ role: 'user', text: prompt, ts: Date.now() })
+      rune.history.push({ role: 'assistant', text: fullOutput.trim(), ts: Date.now() })
+      fs.writeFileSync(filePath, JSON.stringify(rune, null, 2))
+
+      if (code !== 0) console.error(`\n  ⚠️  Agent exited with code ${code}`)
+      else console.log(`\n✓ ${rune.name} finished`)
+      process.exit(code || 0)
+    })
+
+    return
+  }
+
+  // Normal mode: print-only, no tool execution
   const claudeArgs = ['-p', '--print']
   if (systemPrompt) {
     claudeArgs.push('--system-prompt', systemPrompt)
@@ -1133,6 +1206,7 @@ Usage:
     --role "description"    Set the agent's role
   rune open <file.rune>     Open a .rune file (desktop GUI)
   rune run <file.rune> "prompt"   Run agent headlessly (no GUI)
+    --auto                  Auto mode: agent writes files, runs commands, fixes errors
     --output json|text      Output format (default: text)
   rune pipe <a.rune> <b.rune> ... "prompt"   Chain agents in a pipeline
     --output json|text      Output format (default: text)

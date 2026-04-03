@@ -846,7 +846,7 @@ function runRune(file, restArgs) {
 
   const child = spawn('claude', claudeArgs, {
     cwd: folderPath,
-    stdio: ['pipe', 'pipe', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env },
   })
 
@@ -955,7 +955,7 @@ async function pipeRunes(args) {
     const output = await new Promise((resolve, reject) => {
       const child = spawn('claude', claudeArgs, {
         cwd: folderPath,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
       })
 
@@ -1066,7 +1066,7 @@ function watchRune(file, restArgs) {
 
     const child = spawn('claude', claudeArgs, {
       cwd: folderPath,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
     })
 

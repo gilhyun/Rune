@@ -4,6 +4,7 @@ import type { ChatState, ChatMessage, ContentBlock, RuneInfo } from './types'
 
 export function useChat() {
   const [runeInfo, setRuneInfo] = useState<RuneInfo | null>(null)
+  const [connected, setConnected] = useState(false)
   const [state, setState] = useState<ChatState>({
     messages: [],
     isStreaming: false,
@@ -13,6 +14,11 @@ export function useChat() {
   })
   const typeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const send = useIPCSend()
+
+  // Track channel connection status
+  useIPCOn('rune:channelStatus', (data: { port: number; connected: boolean }) => {
+    if (runeInfo && data.port === runeInfo.port) setConnected(data.connected)
+  })
 
   // Initialize from main process
   useIPCOn('rune:init', (data: RuneInfo) => {
@@ -192,6 +198,7 @@ export function useChat() {
 
   return {
     runeInfo,
+    connected,
     messages: state.messages,
     isStreaming: state.isStreaming,
     streamingDisplayText: getDisplayText(),

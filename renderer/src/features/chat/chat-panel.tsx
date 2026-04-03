@@ -82,6 +82,7 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
             streamingActivities={chat.streamingActivities}
             port={chat.runeInfo?.port}
             folderPath={chat.runeInfo?.folderPath}
+            connected={chat.connected}
             visible={!showTerminal}
           />
 
@@ -122,6 +123,7 @@ export function ChatPanel({ chat, showTerminal, onToggleTerminal }: ChatPanelPro
 
           <ChatInput
             isStreaming={chat.isStreaming}
+            disabled={!chat.connected}
             onSend={chat.sendMessage}
             onCancel={chat.cancelStream}
           />

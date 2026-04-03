@@ -280,6 +280,30 @@ function writeMcpJson(folderPath: string, port: number, role?: string, runeFileP
   try {
     fs.writeFileSync(path.join(folderPath, '.mcp.json'), JSON.stringify(mcpConfig, null, 2), 'utf-8')
   } catch {}
+
+  // Auto-allow rune-channel tools so Claude doesn't prompt for permission
+  const claudeDir = path.join(folderPath, '.claude')
+  const settingsFile = path.join(claudeDir, 'settings.local.json')
+  try {
+    if (!fs.existsSync(claudeDir)) fs.mkdirSync(claudeDir, { recursive: true })
+    let settings: any = {}
+    if (fs.existsSync(settingsFile)) {
+      try { settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8')) } catch {}
+    }
+    if (!settings.permissions) settings.permissions = {}
+    if (!settings.permissions.allow) settings.permissions.allow = []
+    const requiredTools = [
+      'mcp__rune-channel__rune_reply',
+      'mcp__rune-channel__rune_activity',
+      'mcp__rune-channel__rune_memory',
+    ]
+    for (const tool of requiredTools) {
+      if (!settings.permissions.allow.includes(tool)) {
+        settings.permissions.allow.push(tool)
+      }
+    }
+    fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2), 'utf-8')
+  } catch {}
 }
 
 // ── Channel Message Handler ─────────────────────────

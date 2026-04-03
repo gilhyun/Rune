@@ -19,19 +19,15 @@ interface MessageListProps {
   streamingActivities?: ContentBlock[]
   port?: number
   folderPath?: string
+  connected?: boolean
   visible?: boolean
 }
 
-export function MessageList({ messages, isStreaming, streamingDisplayText, streamingActivities, port, folderPath, visible }: MessageListProps) {
+export function MessageList({ messages, isStreaming, streamingDisplayText, streamingActivities, port, folderPath, connected = false, visible }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
-  const [connected, setConnected] = useState(false)
   const [toolActivities, setToolActivities] = useState<ToolActivity[]>([])
-
-  useIPCOn('rune:channelStatus', (data: { port: number; connected: boolean }) => {
-    if (data.port === port) setConnected(data.connected)
-  })
 
   useIPCOn('rune:toolActivity', (data: { port: number; type: 'tool_start' | 'tool_end'; tool: string; preview?: string }) => {
     if (data.port !== port) return

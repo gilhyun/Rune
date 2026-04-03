@@ -4,17 +4,19 @@ import { cn } from '@/lib/utils'
 
 interface ChatInputProps {
   isStreaming: boolean
+  disabled?: boolean
   onSend: (content: string, files?: string[]) => void
   onCancel: () => void
 }
 
-export function ChatInput({ isStreaming, onSend, onCancel }: ChatInputProps) {
+export function ChatInput({ isStreaming, disabled, onSend, onCancel }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
 
   const handleSend = useCallback(() => {
+    if (disabled) return
     const content = textareaRef.current?.value.trim()
     if (!content && attachedFiles.length === 0) return
     onSend(content || '', attachedFiles.length > 0 ? attachedFiles : undefined)
@@ -23,7 +25,7 @@ export function ChatInput({ isStreaming, onSend, onCancel }: ChatInputProps) {
       textareaRef.current.style.height = 'auto'
     }
     setAttachedFiles([])
-  }, [onSend, attachedFiles])
+  }, [disabled, onSend, attachedFiles])
 
   const handleSendOrCancel = useCallback(() => {
     const hasContent = textareaRef.current?.value.trim() || attachedFiles.length > 0
@@ -157,21 +159,28 @@ export function ChatInput({ isStreaming, onSend, onCancel }: ChatInputProps) {
         />
         <textarea
           ref={textareaRef}
-          className="flex-1 rounded-xl border border-input bg-transparent px-3.5 py-2.5 text-[13px] text-foreground resize-none outline-none min-h-[42px] max-h-[120px] leading-[1.5] transition-colors placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-0"
-          placeholder="Type a message..."
+          className={cn(
+            'flex-1 rounded-xl border border-input bg-transparent px-3.5 py-2.5 text-[13px] text-foreground resize-none outline-none min-h-[42px] max-h-[120px] leading-[1.5] transition-colors placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-0',
+            disabled && 'opacity-50 cursor-not-allowed'
+          )}
+          placeholder={disabled ? 'Waiting for channel connection...' : 'Type a message...'}
           rows={1}
           spellCheck={false}
+          disabled={disabled}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
         />
         <button
           className={cn(
             'inline-flex items-center justify-center rounded-xl h-[38px] w-[38px] shrink-0 transition-colors',
-            isStreaming
-              ? 'bg-accent-red text-white hover:bg-accent-red/90'
-              : 'bg-accent text-accent-foreground hover:bg-accent/90'
+            disabled
+              ? 'bg-muted text-muted-foreground cursor-not-allowed'
+              : isStreaming
+                ? 'bg-accent-red text-white hover:bg-accent-red/90'
+                : 'bg-accent text-accent-foreground hover:bg-accent/90'
           )}
           onClick={handleSendOrCancel}
+          disabled={disabled}
         >
           {isStreaming ? <Square className="h-3.5 w-3.5" /> : <ArrowUp className="h-4 w-4 stroke-[2.5]" />}
         </button>

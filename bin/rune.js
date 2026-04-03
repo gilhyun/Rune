@@ -720,8 +720,8 @@ function runRune(file, restArgs) {
 
     const claudeArgs = ['-p', '--print',
       '--permission-mode', 'auto',
+      '--verbose',
       '--output-format', 'stream-json',
-      '--include-hook-events',
     ]
     if (systemPrompt) {
       claudeArgs.push('--system-prompt', systemPrompt)

@@ -5,6 +5,10 @@
 <h1 align="center">Rune</h1>
 
 <p align="center">
+  <a href="README.md">English</a> | <a href="README.ko.md">한국어</a>
+</p>
+
+<p align="center">
   <strong>The simplest agent toolkit for Claude Code</strong><br/>
   No SDK. No boilerplate. Just one file per agent.
 </p>

@@ -50,6 +50,24 @@ That's it. You just built an agent.
 
 ---
 
+## How is Rune different from Agent Teams?
+
+Claude Code's Agent Teams spawn teammates at runtime — powerful, but ephemeral. When the session ends, the agents are gone.
+
+Rune takes a different approach: **agents are files.**
+
+| | Agent Teams | Rune |
+|---|---|---|
+| **Persistence** | Session-only — agents disappear when done | `.rune` files persist forever with history and memory |
+| **Portability** | Tied to a single Claude Code session | Share, version-control, and reuse `.rune` files anywhere |
+| **Scheduling** | Manual execution only | Cron, file-change, and git-commit triggers |
+| **Permissions** | Inherited from session | Per-agent controls (`fileWrite`, `bash`, `allowPaths`) |
+| **Execution** | Interactive | Headless, pipelines, CI/CD-ready |
+
+Rune agents survive across sessions, machines, and teams. Build once, run forever.
+
+---
+
 ## Core Concepts
 
 ### One file = one agent

@@ -14,7 +14,7 @@ export default defineConfig({
   },
   define: {
     'process.env': '{}',
-    'process.platform': JSON.stringify('darwin'),
+    'process.platform': JSON.stringify(process.platform),
   },
   build: {
     outDir: path.resolve(__dirname, '..', 'dist', 'renderer'),

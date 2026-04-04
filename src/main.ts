@@ -255,8 +255,12 @@ function startRetryPolling(port: number) {
 
 // ── .mcp.json Writer ─────────────────────────────────
 function findNodePath(): string {
-  try { return execSync('which node', { encoding: 'utf-8' }).trim() } catch {}
-  for (const p of ['/usr/local/bin/node', '/opt/homebrew/bin/node']) {
+  const cmd = process.platform === 'win32' ? 'where node' : 'which node'
+  try { return execSync(cmd, { encoding: 'utf-8' }).trim().split('\n')[0] } catch {}
+  const candidates = process.platform === 'win32'
+    ? ['C:\\Program Files\\nodejs\\node.exe']
+    : ['/usr/local/bin/node', '/opt/homebrew/bin/node']
+  for (const p of candidates) {
     if (fs.existsSync(p)) return p
   }
   return 'node'

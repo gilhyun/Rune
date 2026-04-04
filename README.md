@@ -308,7 +308,7 @@ Or double-click any `.rune` file in Finder.
 | Platform | Status |
 |----------|--------|
 | macOS | Supported |
-| Windows | Coming soon |
+| Windows | Supported |
 | Linux | Coming soon |
 
 ---

@@ -5,17 +5,13 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 
-// Platform check — macOS only for now
-if (process.platform !== 'darwin') {
-  console.error('\n  ❌ Rune currently supports macOS only.')
-  console.error('     Windows and Linux support is coming soon.')
-  console.error('     Follow https://github.com/gilhyun/Rune for updates.\n')
-  process.exit(1)
-}
+// Platform check
+const IS_MAC = process.platform === 'darwin'
+const IS_WIN = process.platform === 'win32'
 
 const RUNE_HOME = path.join(os.homedir(), '.rune')
 const APP_DIR = path.join(RUNE_HOME, 'app')
-const QUICK_ACTION_DIR = path.join(os.homedir(), 'Library', 'Services')
+const QUICK_ACTION_DIR = IS_MAC ? path.join(os.homedir(), 'Library', 'Services') : null
 
 const [,, command, ...args] = process.argv
 
@@ -71,12 +67,12 @@ function install() {
   console.log(`  ✅ App built at ${projectRoot}`)
 
   // 3. Install macOS Quick Action for right-click menu
-  if (process.platform === 'darwin') {
+  if (IS_MAC) {
     installQuickAction(projectRoot)
   }
 
   // 4. Register .rune file association (macOS)
-  if (process.platform === 'darwin') {
+  if (IS_MAC) {
     registerFileAssociation(projectRoot)
   }
 
@@ -1403,7 +1399,7 @@ function uninstall() {
   }
 
   // Unregister from Launch Services
-  if (process.platform === 'darwin') {
+  if (IS_MAC) {
     try {
       execSync(`/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "${appDir}"`, { stdio: 'ignore' })
     } catch {}

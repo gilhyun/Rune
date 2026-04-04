@@ -5,7 +5,7 @@
 <h1 align="center">Rune</h1>
 
 <p align="center">
-  <strong>The simplest agent harness for Claude Code</strong><br/>
+  <strong>The simplest agent toolkit for Claude Code</strong><br/>
   No SDK. No boilerplate. Just one file per agent.
 </p>
 
@@ -35,14 +35,14 @@ npm install -g openrune
 
 ---
 
-## 30-Second Harness
+## 30-Second Quick Start
 
 ```bash
 rune new reviewer --role "Code reviewer, security focused"
 rune run reviewer.rune "Review the latest commit"
 ```
 
-That's it. You just built an agent harness.
+That's it. You just built an agent.
 
 ---
 

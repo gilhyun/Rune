@@ -1416,7 +1416,7 @@ function uninstall() {
 
 function showHelp() {
   console.log(`
-🔮 Rune — File-based AI Agent Harness
+🔮 Rune — File-based AI Agent Toolkit
 
 Usage:
   rune install              Install Rune (build app, register file association, add Quick Action)

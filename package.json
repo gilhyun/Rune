@@ -1,8 +1,8 @@
 {
   "name": "openrune",
-  "version": "0.5.1",
-  "description": "Rune — File-based AI Agent Harness for Claude Code",
-  "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code", "harness", "automation"],
+  "version": "0.5.2",
+  "description": "Rune — File-based AI Agent Toolkit for Claude Code",
+  "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code", "toolkit", "automation"],
   "repository": {
     "type": "git",
     "url": "https://github.com/gilhyun/Rune.git"

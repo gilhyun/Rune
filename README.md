@@ -37,7 +37,7 @@ claude                                       # login if you haven't
 
 > **How Rune works:** Rune uses Claude Code's custom channels (currently in beta) to extend agent capabilities. It does not access the Claude API directly or handle any authentication — all execution goes through the official Claude Code CLI.
 
-> **Usage:** Rune runs through your Claude Code CLI session. As of April 2026, usage from third-party tools counts toward extra usage, not your subscription.
+> **Usage:** Rune runs through your Claude Code CLI session. Usage counts toward your normal Claude Code subscription.
 
 ## Install
 

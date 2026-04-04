@@ -37,7 +37,7 @@ claude                                       # 로그인이 안 되어 있다면
 
 > **Rune의 작동 방식:** Rune은 Claude Code의 커스텀 채널(현재 베타)을 사용하여 에이전트 기능을 확장합니다. Claude API에 직접 접근하거나 인증을 처리하지 않으며, 모든 실행은 공식 Claude Code CLI를 통해 이루어집니다.
 
-> **사용량:** Rune은 사용자의 Claude Code CLI 세션을 통해 실행됩니다. 2026년 4월 기준, 서드파티 도구의 사용량은 구독이 아닌 추가 사용량(extra usage)에서 차감됩니다.
+> **사용량:** Rune은 사용자의 Claude Code CLI 세션을 통해 실행됩니다. 사용량은 일반 Claude Code 구독에서 차감됩니다.
 
 ## 설치
 

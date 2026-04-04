@@ -19,6 +19,10 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license" />
 </p>
 
+<p align="center">
+  <img src="screenshot-chatting-ui.png" width="800" alt="Rune 데스크톱 UI — 4개 에이전트 협업" />
+</p>
+
 ---
 
 ## 사전 준비
@@ -300,6 +304,10 @@ rune open reviewer.rune
 ```
 
 또는 Finder에서 `.rune` 파일을 더블 클릭하세요.
+
+<p align="center">
+  <img src="screenshot-chatting-ui.png" width="800" alt="Rune 데스크톱 UI" />
+</p>
 
 - **실시간 활동** — 도구 호출, 결과, 권한 요청을 실시간으로 확인.
 - **내장 터미널** — Claude Code 출력과 사용자 명령어를 나란히.

@@ -19,6 +19,10 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license" />
 </p>
 
+<p align="center">
+  <img src="screenshot-chatting-ui.png" width="800" alt="Rune Desktop UI — 4 agents collaborating" />
+</p>
+
 ---
 
 ## Prerequisites
@@ -300,6 +304,10 @@ rune open reviewer.rune
 ```
 
 Or double-click any `.rune` file in Finder.
+
+<p align="center">
+  <img src="screenshot-chatting-ui.png" width="800" alt="Rune Desktop UI" />
+</p>
 
 - **Real-time activity** — See tool calls, results, and permission requests as they happen.
 - **Built-in terminal** — Claude Code output and your own commands, side by side.

@@ -11,7 +11,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/powered_by-Claude_Code-blueviolet" alt="Claude Code" />
-  <img src="https://img.shields.io/badge/platform-macOS-blue" alt="platform" />
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue" alt="platform" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license" />
 </p>
 
@@ -327,7 +327,7 @@ Or double-click any `.rune` file in Finder.
 |----------|--------|
 | macOS | Supported |
 | Windows | Supported |
-| Linux | Coming soon |
+| Linux | Supported |
 
 ---
 

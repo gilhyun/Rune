@@ -1,7 +1,7 @@
 {
   "name": "openrune",
   "version": "1.0.0",
-  "description": "Rune — File-based AI Agent Toolkit for Claude Code",
+  "description": "Persistent AI agents for Claude Code — build once, run forever.",
   "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code", "toolkit", "automation"],
   "repository": {
     "type": "git",

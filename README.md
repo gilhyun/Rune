@@ -71,6 +71,7 @@ Rune takes a different approach: **agents are files.**
 | **Scheduling** | Manual execution only | Cron, file-change, and git-commit triggers |
 | **Permissions** | Inherited from session | Per-agent controls (`fileWrite`, `bash`, `allowPaths`) |
 | **Execution** | Interactive | Headless, pipelines, CI/CD-ready |
+| **Self-correction** | Not built-in | `rune loop` — automatic review-fix cycles |
 
 Rune agents survive across sessions, machines, and teams. Build once, run forever.
 
@@ -214,6 +215,41 @@ rune pipe architect.rune coder.rune "Build a REST API with Express" --auto
 
 architect designs → coder implements (writes files, installs deps).
 
+### Self-correction loop
+
+Agents review and fix their own work automatically:
+
+```bash
+rune loop coder.rune reviewer.rune "Build a REST API with Express" --until "no critical issues" --max-iterations 3 --auto
+```
+
+```
+🔁 Starting self-correction loop (max 3 iterations)
+   Stop condition: "no critical issues"
+
+  ━━━ Iteration 1/3 ━━━
+
+  ▶ [doer] coder — implements the API
+  ✓ coder done
+
+  ▶ [reviewer] reviewer — finds 2 critical issues
+  ✓ reviewer done
+
+  ━━━ Iteration 2/3 ━━━
+
+  ▶ [doer] coder — fixes the issues
+  ✓ coder done
+
+  ▶ [reviewer] reviewer — "no critical issues found"
+  ✓ reviewer done
+
+  ✅ Condition met: "no critical issues"
+
+🔁 Loop completed after 2 iterations
+```
+
+The doer implements, the reviewer reviews. If issues are found, feedback goes back to the doer automatically — until the condition is met or max iterations are reached.
+
 ### Automated triggers
 
 ```bash
@@ -324,6 +360,7 @@ Or double-click any `.rune` file in Finder.
 | `rune new <name> [--role "..."]` | Create agent |
 | `rune run <file> "prompt" [--auto] [--output json]` | Run headlessly |
 | `rune pipe <a> <b> [...] "prompt" [--auto]` | Chain agents |
+| `rune loop <doer> <reviewer> "prompt" [--until "..."] [--max-iterations N] [--auto]` | Self-correction loop |
 | `rune watch <file> --on <event> --prompt "..."` | Automated triggers |
 | `rune open <file>` | Desktop UI |
 | `rune list` | List agents in current directory |

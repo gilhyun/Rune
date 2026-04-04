@@ -71,6 +71,7 @@ Rune은 다른 접근을 합니다: **에이전트가 파일입니다.**
 | **스케줄링** | 수동 실행만 가능 | Cron, 파일 변경, git-commit 트리거 |
 | **권한** | 세션에서 상속 | 에이전트별 제어 (`fileWrite`, `bash`, `allowPaths`) |
 | **실행** | 대화형 | 헤드리스, 파이프라인, CI/CD 지원 |
+| **자기 수정** | 기본 제공 없음 | `rune loop` — 자동 리뷰-수정 반복 |
 
 Rune 에이전트는 세션, 머신, 팀을 넘어 살아남습니다. 한 번 만들면 영원히 실행.
 
@@ -214,6 +215,41 @@ rune pipe architect.rune coder.rune "Build a REST API with Express" --auto
 
 architect가 설계 → coder가 구현 (파일 작성, 의존성 설치).
 
+### 자기 수정 루프
+
+에이전트가 자동으로 자신의 작업을 리뷰하고 수정합니다:
+
+```bash
+rune loop coder.rune reviewer.rune "Build a REST API with Express" --until "no critical issues" --max-iterations 3 --auto
+```
+
+```
+🔁 Starting self-correction loop (max 3 iterations)
+   Stop condition: "no critical issues"
+
+  ━━━ Iteration 1/3 ━━━
+
+  ▶ [doer] coder — API 구현
+  ✓ coder done
+
+  ▶ [reviewer] reviewer — 치명적 이슈 2개 발견
+  ✓ reviewer done
+
+  ━━━ Iteration 2/3 ━━━
+
+  ▶ [doer] coder — 이슈 수정
+  ✓ coder done
+
+  ▶ [reviewer] reviewer — "no critical issues found"
+  ✓ reviewer done
+
+  ✅ Condition met: "no critical issues"
+
+🔁 Loop completed after 2 iterations
+```
+
+구현자가 구현하고, 리뷰어가 리뷰합니다. 문제가 발견되면 피드백이 자동으로 구현자에게 전달됩니다 — 조건이 충족되거나 최대 반복 횟수에 도달할 때까지.
+
 ### 자동화 트리거
 
 ```bash
@@ -324,6 +360,7 @@ rune open reviewer.rune
 | `rune new <name> [--role "..."]` | 에이전트 생성 |
 | `rune run <file> "prompt" [--auto] [--output json]` | 헤드리스 실행 |
 | `rune pipe <a> <b> [...] "prompt" [--auto]` | 에이전트 체이닝 |
+| `rune loop <doer> <reviewer> "prompt" [--until "..."] [--max-iterations N] [--auto]` | 자기 수정 루프 |
 | `rune watch <file> --on <event> --prompt "..."` | 자동화 트리거 |
 | `rune open <file>` | 데스크톱 UI |
 | `rune list` | 현재 디렉토리의 에이전트 목록 |

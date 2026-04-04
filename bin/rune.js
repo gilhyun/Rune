@@ -27,6 +27,7 @@ switch (command) {
   case 'open':    return openRune(args[0])
   case 'run':     return runRune(args[0], args.slice(1))
   case 'pipe':    return pipeRunes(args)
+  case 'loop':    return loopRunes(args)
   case 'watch':   return watchRune(args[0], args.slice(1))
   case 'list':    return listRunes()
   case 'uninstall': return uninstall()
@@ -1156,6 +1157,236 @@ async function pipeRunes(args) {
   }
 }
 
+// ── loop (self-correction) ──────────────────────
+
+async function loopRunes(args) {
+  // Parse: rune loop coder.rune reviewer.rune "prompt" [--until "condition"] [--max-iterations N] [--auto]
+  const runeFiles = []
+  let prompt = ''
+  let untilCondition = ''
+  let maxIterations = 5
+  let autoMode = false
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--until' && args[i + 1]) {
+      untilCondition = args[++i]
+    } else if (args[i] === '--max-iterations' && args[i + 1]) {
+      maxIterations = parseInt(args[++i], 10)
+    } else if (args[i] === '--auto') {
+      autoMode = true
+    } else if (args[i].endsWith('.rune')) {
+      runeFiles.push(args[i])
+    } else if (!prompt) {
+      prompt = args[i]
+    }
+  }
+
+  if (runeFiles.length < 2 || !prompt) {
+    console.log('Usage: rune loop <doer.rune> <reviewer.rune> "prompt" [--until "condition"] [--max-iterations N] [--auto]')
+    console.log('')
+    console.log('Options:')
+    console.log('  --until "..."          Stop when the reviewer\'s output contains this text')
+    console.log('  --max-iterations N     Maximum number of loop iterations (default: 5)')
+    console.log('  --auto                 Allow agents to write files and run commands')
+    console.log('')
+    console.log('Example:')
+    console.log('  rune loop coder.rune reviewer.rune "Build a REST API" --until "no critical issues" --max-iterations 3 --auto')
+    console.log('')
+    console.log('The first agent implements, the last agent reviews.')
+    console.log('If the reviewer finds issues, feedback is sent back to the first agent automatically.')
+    process.exit(1)
+  }
+
+  // Validate files
+  for (const file of runeFiles) {
+    const filePath = path.resolve(process.cwd(), file)
+    if (!fs.existsSync(filePath)) {
+      console.error(`  ❌ File not found: ${filePath}`)
+      process.exit(1)
+    }
+  }
+
+  const doerFile = runeFiles[0]
+  const reviewerFile = runeFiles[runeFiles.length - 1]
+  const doerPath = path.resolve(process.cwd(), doerFile)
+  const reviewerPath = path.resolve(process.cwd(), reviewerFile)
+
+  let currentPrompt = prompt
+  let iteration = 0
+  let converged = false
+
+  console.log(`\n🔁 Starting self-correction loop (max ${maxIterations} iterations)`)
+  if (untilCondition) console.log(`   Stop condition: "${untilCondition}"`)
+  console.log('')
+
+  while (iteration < maxIterations && !converged) {
+    iteration++
+    console.log(`  ━━━ Iteration ${iteration}/${maxIterations} ━━━\n`)
+
+    // Step 1: Doer implements
+    const doerRune = JSON.parse(fs.readFileSync(doerPath, 'utf-8'))
+    const doerFolder = path.dirname(doerPath)
+    const doerSystem = []
+    if (doerRune.role) doerSystem.push(`Your role: ${doerRune.role}`)
+    if (doerRune.memory && doerRune.memory.length > 0) {
+      doerSystem.push('Saved memory:')
+      doerRune.memory.forEach((m, j) => doerSystem.push(`${j + 1}. ${m}`))
+    }
+
+    const doerContext = iteration > 1
+      ? `You are in iteration ${iteration} of a self-correction loop. The reviewer found issues with your previous work:\n\n${currentPrompt}\n\nFix the issues and improve your implementation.`
+      : currentPrompt
+
+    console.log(`  ▶ [doer] ${doerRune.name} (${doerRune.role || 'assistant'})`)
+
+    const doerOutput = await runAgent(doerRune.name, doerFolder, doerSystem, doerContext, autoMode)
+
+    doerRune.history = doerRune.history || []
+    doerRune.history.push({ role: 'user', text: doerContext, ts: Date.now() })
+    doerRune.history.push({ role: 'assistant', text: doerOutput, ts: Date.now() })
+    fs.writeFileSync(doerPath, JSON.stringify(doerRune, null, 2))
+
+    console.log(`  ✓ ${doerRune.name} done\n`)
+
+    // Step 2: Reviewer reviews
+    const reviewerRune = JSON.parse(fs.readFileSync(reviewerPath, 'utf-8'))
+    const reviewerFolder = path.dirname(reviewerPath)
+    const reviewerSystem = []
+    if (reviewerRune.role) reviewerSystem.push(`Your role: ${reviewerRune.role}`)
+    if (reviewerRune.memory && reviewerRune.memory.length > 0) {
+      reviewerSystem.push('Saved memory:')
+      reviewerRune.memory.forEach((m, j) => reviewerSystem.push(`${j + 1}. ${m}`))
+    }
+
+    const reviewerContext = `You are the reviewer in iteration ${iteration} of a self-correction loop. Review the work done by ${doerRune.name}:\n\n${doerOutput}\n\nIf there are issues, describe them clearly so the implementer can fix them. If the work is satisfactory, say so clearly.`
+
+    console.log(`  ▶ [reviewer] ${reviewerRune.name} (${reviewerRune.role || 'assistant'})`)
+
+    const reviewerOutput = await runAgent(reviewerRune.name, reviewerFolder, reviewerSystem, reviewerContext, false)
+
+    reviewerRune.history = reviewerRune.history || []
+    reviewerRune.history.push({ role: 'user', text: reviewerContext, ts: Date.now() })
+    reviewerRune.history.push({ role: 'assistant', text: reviewerOutput, ts: Date.now() })
+    fs.writeFileSync(reviewerPath, JSON.stringify(reviewerRune, null, 2))
+
+    console.log(`  ✓ ${reviewerRune.name} done\n`)
+
+    // Check convergence
+    if (untilCondition) {
+      const lower = reviewerOutput.toLowerCase()
+      if (lower.includes(untilCondition.toLowerCase())) {
+        converged = true
+        console.log(`  ✅ Condition met: "${untilCondition}"`)
+      }
+    }
+
+    if (!converged) {
+      currentPrompt = reviewerOutput
+    }
+  }
+
+  if (!converged && iteration >= maxIterations) {
+    console.log(`  ⚠️  Max iterations (${maxIterations}) reached`)
+  }
+
+  console.log(`\n🔁 Loop completed after ${iteration} iteration${iteration > 1 ? 's' : ''}\n`)
+}
+
+async function runAgent(name, folderPath, systemParts, prompt, autoMode) {
+  if (autoMode) {
+    const mcpPath = path.join(folderPath, '.mcp.json')
+    const mcpBackup = path.join(folderPath, '.mcp.json.loop.bak')
+    let mcpHidden = false
+    if (fs.existsSync(mcpPath)) {
+      fs.renameSync(mcpPath, mcpBackup)
+      mcpHidden = true
+    }
+
+    const claudeArgs = ['-p', '--print',
+      '--dangerously-skip-permissions',
+      '--verbose',
+      '--output-format', 'stream-json',
+    ]
+    if (systemParts.length > 0) {
+      claudeArgs.push('--system-prompt', systemParts.join('\n'))
+    }
+    claudeArgs.push(prompt)
+
+    const output = await new Promise((resolve, reject) => {
+      const child = spawn('claude', claudeArgs, {
+        cwd: folderPath,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env },
+      })
+
+      let fullOutput = ''
+      let buffer = ''
+      child.stdout.on('data', (data) => {
+        buffer += data.toString()
+        const lines = buffer.split('\n')
+        buffer = lines.pop()
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const event = JSON.parse(line)
+            if (event.type === 'assistant' && event.message && event.message.content) {
+              for (const block of event.message.content) {
+                if (block.type === 'tool_use') {
+                  const tool = block.name || 'unknown'
+                  const input = block.input || {}
+                  if (tool === 'Bash') console.log(`    ▶ Bash: ${(input.command || '').slice(0, 120)}`)
+                  else if (tool === 'Write') console.log(`    ▶ Write: ${input.file_path || ''}`)
+                  else if (tool === 'Edit') console.log(`    ▶ Edit: ${input.file_path || ''}`)
+                  else if (tool === 'Read') console.log(`    ▶ Read: ${input.file_path || ''}`)
+                  else console.log(`    ▶ ${tool}`)
+                } else if (block.type === 'text' && block.text && block.text.trim()) {
+                  console.log(`    💬 ${block.text.trim().slice(0, 200)}`)
+                }
+              }
+            }
+            if (event.type === 'result') {
+              fullOutput = event.result || ''
+            }
+          } catch {}
+        }
+      })
+      child.stderr.on('data', (d) => { process.stderr.write(d) })
+      child.on('close', (code) => {
+        if (mcpHidden && fs.existsSync(mcpBackup)) fs.renameSync(mcpBackup, mcpPath)
+        if (code !== 0) reject(new Error(`Agent ${name} exited with code ${code}`))
+        else resolve(fullOutput.trim())
+      })
+    })
+
+    return output
+  } else {
+    const tmpdir = require('os').tmpdir()
+    const claudeArgs = ['-p', '--print', '--add-dir', folderPath]
+    if (systemParts.length > 0) {
+      claudeArgs.push('--system-prompt', systemParts.join('\n') + `\nWorking folder: ${folderPath}`)
+    }
+    claudeArgs.push('--', prompt)
+
+    const output = await new Promise((resolve, reject) => {
+      const child = spawn('claude', claudeArgs, {
+        cwd: tmpdir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env },
+      })
+
+      let stdout = ''
+      child.stdout.on('data', (d) => { stdout += d.toString() })
+      child.stderr.on('data', (d) => { process.stderr.write(d) })
+      child.on('close', (code) => {
+        if (code !== 0) reject(new Error(`Agent ${name} exited with code ${code}`))
+        else resolve(stdout.trim())
+      })
+    })
+
+    return output
+  }
+}
+
 // ── watch (triggers) ────────────────────────────
 
 function watchRune(file, restArgs) {
@@ -1425,6 +1656,10 @@ Usage:
     --log <file.json>       Save structured log (tool calls, cost, duration)
   rune pipe <a.rune> <b.rune> ... "prompt"   Chain agents in a pipeline
     --output json|text      Output format (default: text)
+  rune loop <doer.rune> <reviewer.rune> "prompt"   Self-correction loop
+    --until "condition"     Stop when reviewer output contains this text
+    --max-iterations N      Max iterations (default: 5)
+    --auto                  Allow agents to write files and run commands
   rune watch <file.rune>    Set up automated triggers
     --on <event>            Event: file-change, git-commit, git-push, cron
     --prompt "..."          Prompt to send when triggered
@@ -1438,6 +1673,7 @@ Examples:
   rune new reviewer --role "Code reviewer, security focused"
   rune run reviewer.rune "Review the latest commit"
   rune pipe coder.rune reviewer.rune "Implement a login page"
+  rune loop coder.rune reviewer.rune "Build a REST API" --until "no critical issues" --max-iterations 3 --auto
   rune watch reviewer.rune --on git-commit --prompt "Review this commit"
   rune watch monitor.rune --on cron --interval 5m --prompt "Check server health"
   echo "Fix the bug in auth.ts" | rune run backend.rune

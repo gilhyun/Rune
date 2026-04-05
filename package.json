@@ -1,6 +1,6 @@
 {
   "name": "openrune",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Persistent AI agents for Claude Code — build once, run forever.",
   "keywords": ["ai", "agent", "claude", "claude-code", "cli", "toolkit", "automation"],
   "repository": {

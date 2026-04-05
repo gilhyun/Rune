@@ -61,10 +61,6 @@ Key points:
 npm install -g openrune
 ```
 
-Pure Node.js CLI — no Electron, no GUI, no postinstall scripts.
-
-> Looking for a chat GUI? See **[RuneChat](https://github.com/gilhyun/runechat)** — a desktop messenger for your `.rune` agents.
-
 ---
 
 ## 30-Second Quick Start

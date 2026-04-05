@@ -61,10 +61,6 @@ Claude Code CLI (이미 로그인된 세션)
 npm install -g openrune
 ```
 
-순수 Node.js CLI — Electron, GUI, postinstall 스크립트 없음.
-
-> 채팅 GUI를 찾으신다면 **[RuneChat](https://github.com/gilhyun/runechat)** 을 확인하세요 — `.rune` 에이전트를 위한 데스크톱 메신저 앱입니다.
-
 ---
 
 ## 30초 빠른 시작

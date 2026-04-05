@@ -31,9 +31,29 @@ npm install -g @anthropic-ai/claude-code
 claude                                       # login if you haven't
 ```
 
-> **How Rune works:** Rune spawns Claude Code as a subprocess for each agent invocation. It does not access the Claude API directly or handle any authentication — all execution goes through the official Claude Code CLI.
+### How Rune works
 
-> **Usage:** Rune runs through your Claude Code CLI session. Usage counts toward your normal Claude Code subscription.
+Rune does not call the Claude API, handle any credentials, or wrap Claude Code's internals. Every agent invocation is a plain subprocess call to the official `claude` CLI:
+
+```
+rune run reviewer.rune "..."
+      │
+      ▼
+spawn('claude', ['-p', '--print',
+                 '--mcp-config', '{"mcpServers":{}}',
+                 '--strict-mcp-config',
+                 '--system-prompt', <role + memory + recent history>,
+                 '--', <your prompt>])
+      │
+      ▼
+Claude Code CLI (your logged-in session)
+```
+
+Key points:
+- **No API key, no OAuth shim.** Rune uses your already-authenticated `claude` CLI as-is.
+- **MCP isolation.** Rune passes `--mcp-config '{"mcpServers":{}}' --strict-mcp-config` so your project's `.mcp.json` never gets auto-loaded during an agent run. Nothing in your working folder is touched.
+- **State lives in the `.rune` file.** Role, memory, and conversation history are plain JSON on your disk. Rune injects them into the system prompt each run — that's how persistence works without any server.
+- **Usage:** runs through your Claude Code CLI session, so usage counts toward your normal Claude Code subscription.
 
 ## Install
 

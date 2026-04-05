@@ -31,9 +31,29 @@ npm install -g @anthropic-ai/claude-code
 claude                                       # 로그인이 안 되어 있다면 실행
 ```
 
-> **Rune의 작동 방식:** Rune은 각 에이전트 호출 시 Claude Code를 서브프로세스로 실행합니다. Claude API에 직접 접근하거나 인증을 처리하지 않으며, 모든 실행은 공식 Claude Code CLI를 통해 이루어집니다.
+### Rune의 작동 방식
 
-> **사용량:** Rune은 사용자의 Claude Code CLI 세션을 통해 실행됩니다. 사용량은 일반 Claude Code 구독에서 차감됩니다.
+Rune은 Claude API를 호출하거나, 인증 정보를 다루거나, Claude Code 내부를 래핑하지 않습니다. 모든 에이전트 호출은 공식 `claude` CLI에 대한 단순한 서브프로세스 호출입니다:
+
+```
+rune run reviewer.rune "..."
+      │
+      ▼
+spawn('claude', ['-p', '--print',
+                 '--mcp-config', '{"mcpServers":{}}',
+                 '--strict-mcp-config',
+                 '--system-prompt', <역할 + 메모리 + 최근 대화>,
+                 '--', <사용자 프롬프트>])
+      │
+      ▼
+Claude Code CLI (이미 로그인된 세션)
+```
+
+핵심 요약:
+- **API 키 없음, OAuth 가로채기 없음.** Rune은 이미 인증된 `claude` CLI를 그대로 사용합니다.
+- **MCP 격리.** `--mcp-config '{"mcpServers":{}}' --strict-mcp-config` 를 넘겨서 프로젝트의 `.mcp.json`이 에이전트 실행 중 자동 로드되지 않도록 합니다. 작업 폴더의 파일은 건드리지 않습니다.
+- **상태는 `.rune` 파일에.** 역할, 메모리, 대화 히스토리는 디스크에 있는 평범한 JSON입니다. Rune은 매 실행마다 이를 시스템 프롬프트에 주입합니다 — 이것이 서버 없이 영구 저장이 가능한 이유입니다.
+- **사용량:** Claude Code CLI 세션을 통해 실행되므로 일반 Claude Code 구독에서 차감됩니다.
 
 ## 설치
 

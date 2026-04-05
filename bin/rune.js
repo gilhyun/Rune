@@ -3,7 +3,6 @@
 const { spawn } = require('child_process')
 const path = require('path')
 const fs = require('fs')
-const os = require('os')
 
 const [,, command, ...args] = process.argv
 
@@ -180,16 +179,9 @@ function runRune(file, restArgs) {
   if (autoMode) {
     console.log(`🔮 [auto] ${rune.name} is working on: ${prompt}\n`)
 
-    // Temporarily hide .mcp.json to prevent MCP interference
-    const mcpPath = path.join(folderPath, '.mcp.json')
-    const mcpBackup = path.join(folderPath, '.mcp.json.bak')
-    let mcpHidden = false
-    if (fs.existsSync(mcpPath)) {
-      fs.renameSync(mcpPath, mcpBackup)
-      mcpHidden = true
-    }
-
     const claudeArgs = ['-p', '--print',
+      '--mcp-config', '{"mcpServers":{}}',
+      '--strict-mcp-config',
       '--dangerously-skip-permissions',
       '--verbose',
       '--output-format', 'stream-json',
@@ -202,12 +194,6 @@ function runRune(file, restArgs) {
       claudeArgs.push('--system-prompt', systemPrompt)
     }
     claudeArgs.push(prompt)
-
-    const restoreMcp = () => {
-      if (mcpHidden && fs.existsSync(mcpBackup)) {
-        fs.renameSync(mcpBackup, mcpPath)
-      }
-    }
 
     const child = spawn('claude', claudeArgs, {
       cwd: folderPath,
@@ -273,7 +259,6 @@ function runRune(file, restArgs) {
     child.stderr.on('data', (d) => { process.stderr.write(d) })
 
     child.on('close', (code) => {
-      restoreMcp()
       // Save to history
       rune.history = rune.history || []
       rune.history.push({ role: 'user', text: prompt, ts: Date.now() })
@@ -306,16 +291,15 @@ function runRune(file, restArgs) {
       process.exit(code || 0)
     })
 
-    // Restore .mcp.json if process is killed
-    process.on('SIGINT', restoreMcp)
-    process.on('SIGTERM', restoreMcp)
-
     return
   }
 
   // Normal mode: print-only, no tool execution
-  // Run from tmpdir to avoid .mcp.json interference, add project folder via --add-dir
-  const claudeArgs = ['-p', '--print', '--add-dir', folderPath]
+  const claudeArgs = [
+    '-p', '--print',
+    '--mcp-config', '{"mcpServers":{}}',
+    '--strict-mcp-config',
+  ]
   if (systemPrompt) {
     claudeArgs.push('--system-prompt', systemPrompt + `\nWorking folder: ${folderPath}`)
   }
@@ -325,7 +309,7 @@ function runRune(file, restArgs) {
   claudeArgs.push('--', prompt)
 
   const child = spawn('claude', claudeArgs, {
-    cwd: os.tmpdir(),
+    cwd: folderPath,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env },
   })
@@ -434,16 +418,9 @@ async function pipeRunes(args) {
     const useAuto = autoMode && isLast
 
     if (useAuto) {
-      // Temporarily hide .mcp.json
-      const mcpPath = path.join(folderPath, '.mcp.json')
-      const mcpBackup = path.join(folderPath, '.mcp.json.pipe.bak')
-      let mcpHidden = false
-      if (fs.existsSync(mcpPath)) {
-        fs.renameSync(mcpPath, mcpBackup)
-        mcpHidden = true
-      }
-
       const claudeArgs = ['-p', '--print',
+        '--mcp-config', '{"mcpServers":{}}',
+        '--strict-mcp-config',
         '--dangerously-skip-permissions',
         '--verbose',
         '--output-format', 'stream-json',
@@ -494,7 +471,6 @@ async function pipeRunes(args) {
         })
         child.stderr.on('data', (d) => { process.stderr.write(d) })
         child.on('close', (code) => {
-          if (mcpHidden && fs.existsSync(mcpBackup)) fs.renameSync(mcpBackup, mcpPath)
           if (code !== 0) reject(new Error(`Agent ${rune.name} exited with code ${code}`))
           else resolve(fullOutput.trim())
         })
@@ -508,8 +484,12 @@ async function pipeRunes(args) {
       currentInput = output
 
     } else {
-      // Normal pipe step: text output only, run from tmpdir to avoid .mcp.json
-      const claudeArgs = ['-p', '--print', '--add-dir', folderPath]
+      // Normal pipe step: text output only
+      const claudeArgs = [
+        '-p', '--print',
+        '--mcp-config', '{"mcpServers":{}}',
+        '--strict-mcp-config',
+      ]
       if (systemParts.length > 0) {
         claudeArgs.push('--system-prompt', systemParts.join('\n') + `\nWorking folder: ${folderPath}`)
       }
@@ -517,7 +497,7 @@ async function pipeRunes(args) {
 
       const output = await new Promise((resolve, reject) => {
         const child = spawn('claude', claudeArgs, {
-          cwd: os.tmpdir(),
+          cwd: folderPath,
           stdio: ['ignore', 'pipe', 'pipe'],
           env: { ...process.env },
         })
@@ -690,15 +670,9 @@ async function loopRunes(args) {
 
 async function runAgent(name, folderPath, systemParts, prompt, autoMode) {
   if (autoMode) {
-    const mcpPath = path.join(folderPath, '.mcp.json')
-    const mcpBackup = path.join(folderPath, '.mcp.json.loop.bak')
-    let mcpHidden = false
-    if (fs.existsSync(mcpPath)) {
-      fs.renameSync(mcpPath, mcpBackup)
-      mcpHidden = true
-    }
-
     const claudeArgs = ['-p', '--print',
+      '--mcp-config', '{"mcpServers":{}}',
+      '--strict-mcp-config',
       '--dangerously-skip-permissions',
       '--verbose',
       '--output-format', 'stream-json',
@@ -748,7 +722,6 @@ async function runAgent(name, folderPath, systemParts, prompt, autoMode) {
       })
       child.stderr.on('data', (d) => { process.stderr.write(d) })
       child.on('close', (code) => {
-        if (mcpHidden && fs.existsSync(mcpBackup)) fs.renameSync(mcpBackup, mcpPath)
         if (code !== 0) reject(new Error(`Agent ${name} exited with code ${code}`))
         else resolve(fullOutput.trim())
       })
@@ -756,8 +729,11 @@ async function runAgent(name, folderPath, systemParts, prompt, autoMode) {
 
     return output
   } else {
-    const tmpdir = require('os').tmpdir()
-    const claudeArgs = ['-p', '--print', '--add-dir', folderPath]
+    const claudeArgs = [
+      '-p', '--print',
+      '--mcp-config', '{"mcpServers":{}}',
+      '--strict-mcp-config',
+    ]
     if (systemParts.length > 0) {
       claudeArgs.push('--system-prompt', systemParts.join('\n') + `\nWorking folder: ${folderPath}`)
     }
@@ -765,7 +741,7 @@ async function runAgent(name, folderPath, systemParts, prompt, autoMode) {
 
     const output = await new Promise((resolve, reject) => {
       const child = spawn('claude', claudeArgs, {
-        cwd: tmpdir,
+        cwd: folderPath,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
       })

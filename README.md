@@ -21,6 +21,19 @@
 
 ---
 
+## Why Rune?
+
+Claude Code already ships with subagents, hooks, skills, and headless mode. Rune is for the things that aren't built in:
+
+- **One file = one agent.** Claude Code has `--resume`, but session threads pile up per directory with no names, no roles, and no way to tell which is which — good luck finding "that reviewer conversation from last week." Rune puts **everything about an agent into a single `.rune` file**: role, permissions, memory, full history. Name it, commit it, share it, drop it into another project. Managing 10 agents is managing 10 files.
+- **Self-correction loops.** `rune loop coder.rune reviewer.rune "..." --until "no critical issues"` runs a doer/reviewer cycle until the stop condition is met or max iterations are reached. No scripting.
+- **Per-agent permissions.** Lock a reviewer to `fileWrite: false` with `allowPaths: ["src/**"]`. A coder on the same project can still write anywhere. The guardrails travel with the file, not the session.
+- **One-line triggers.** `rune watch agent.rune --on cron --interval 5m` — scheduled, file-change, and git-commit triggers without writing hook configs.
+
+If you just want a one-off specialized agent inside a single session, Claude Code's built-in subagents are perfect. Reach for Rune when the same agent needs to come back tomorrow, run on a schedule, or be handed off to a teammate.
+
+---
+
 ## Prerequisites
 
 - **Node.js** 18+

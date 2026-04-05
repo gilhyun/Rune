@@ -34,17 +34,7 @@ If you just want a one-off specialized agent inside a single session, Claude Cod
 
 ---
 
-## Prerequisites
-
-- **Node.js** 18+
-- **Claude Code CLI** installed and logged in — Rune uses Claude Code under the hood for all agent execution
-
-```bash
-npm install -g @anthropic-ai/claude-code
-claude                                       # login if you haven't
-```
-
-### How Rune works
+## How Rune works
 
 Rune does not call the Claude API, handle any credentials, or wrap Claude Code's internals. Every agent invocation is a plain subprocess call to the official `claude` CLI:
 
@@ -67,6 +57,18 @@ Key points:
 - **MCP isolation.** Rune passes `--mcp-config '{"mcpServers":{}}' --strict-mcp-config` so your project's `.mcp.json` never gets auto-loaded during an agent run. Nothing in your working folder is touched.
 - **State lives in the `.rune` file.** Role, memory, and conversation history are plain JSON on your disk. Rune injects them into the system prompt each run — that's how persistence works without any server.
 - **Usage:** runs through your Claude Code CLI session, so usage counts toward your normal Claude Code subscription.
+
+---
+
+## Prerequisites
+
+- **Node.js** 18+
+- **Claude Code CLI** installed and logged in — Rune uses Claude Code under the hood for all agent execution
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude                                       # login if you haven't
+```
 
 ## Install
 

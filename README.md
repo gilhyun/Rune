@@ -19,10 +19,6 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license" />
 </p>
 
-<p align="center">
-  <img src="screenshot-chatting-ui.png" width="800" alt="Rune Desktop UI — 4 agents collaborating" />
-</p>
-
 ---
 
 ## Prerequisites
@@ -35,7 +31,7 @@ npm install -g @anthropic-ai/claude-code
 claude                                       # login if you haven't
 ```
 
-> **How Rune works:** Rune uses Claude Code's custom channels (currently in beta) to extend agent capabilities. It does not access the Claude API directly or handle any authentication — all execution goes through the official Claude Code CLI.
+> **How Rune works:** Rune spawns Claude Code as a subprocess for each agent invocation. It does not access the Claude API directly or handle any authentication — all execution goes through the official Claude Code CLI.
 
 > **Usage:** Rune runs through your Claude Code CLI session. Usage counts toward your normal Claude Code subscription.
 
@@ -44,6 +40,10 @@ claude                                       # login if you haven't
 ```bash
 npm install -g openrune
 ```
+
+Pure Node.js CLI — no Electron, no GUI, no postinstall scripts.
+
+> Looking for a chat GUI? See **[RuneChat](https://github.com/gilhyun/runechat)** — a desktop messenger for your `.rune` agents.
 
 ---
 
@@ -159,7 +159,7 @@ rune run manager.rune "Create a summarizer and a translator agent, then pipe the
 ```
 
 The manager will:
-1. Run `rune new summarizer --role "..."` 
+1. Run `rune new summarizer --role "..."`
 2. Run `rune new translator --role "..."`
 3. Run `rune pipe summarizer.rune translator.rune "..."`
 4. If something fails, debug and fix it autonomously
@@ -168,7 +168,7 @@ Agents creating agents. No human intervention.
 
 ### Headless execution
 
-Run agents from the terminal. No GUI needed:
+Run agents from the terminal:
 
 ```bash
 rune run reviewer.rune "Review the latest commit"
@@ -282,77 +282,6 @@ const { finalOutput } = await rune.pipe(
 
 ---
 
-## Example: Agent-Powered API Server
-
-A full walkthrough — from zero to a running server built by agents.
-
-### 1. Install and create agents
-
-```bash
-npm install -g openrune
-mkdir my-project && cd my-project
-
-rune new architect --role "Software architect. Design system architecture concisely."
-rune new coder --role "Backend developer. Implement code based on the given plan."
-rune new reviewer --role "Code reviewer. Review for bugs and security issues."
-```
-
-### 2. Agents collaborate to build a server
-
-```bash
-rune pipe architect.rune coder.rune "Design and build an Express server with POST /review endpoint that uses require('openrune') to load reviewer.rune and send the prompt. Run npm init -y and npm install express openrune." --auto
-```
-
-architect designs the architecture → coder writes `server.js`, runs `npm init`, installs dependencies.
-
-### 3. Start the server
-
-```bash
-node server.js
-```
-
-### 4. Call the agent via API
-
-```bash
-curl -X POST http://localhost:3000/review \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Review this project"}'
-```
-
-The reviewer agent analyzes your project and returns a full code review.
-
-### 5. Open the desktop UI
-
-```bash
-rune open reviewer.rune
-```
-
-The conversation history from the API call is already there — context persists across CLI, API, and GUI.
-
----
-
-## Desktop UI
-
-Rune includes an optional desktop app for interactive chat.
-
-```bash
-rune open reviewer.rune
-```
-
-Or double-click any `.rune` file in Finder.
-
-<p align="center">
-  <img src="screenshot-chatting-ui.png" width="800" alt="Rune Desktop UI" />
-</p>
-
-- **Real-time activity** — See tool calls, results, and permission requests as they happen.
-- **Built-in terminal** — Claude Code output and your own commands, side by side.
-- **Right-click to create** — macOS Quick Action for creating agents from Finder.
-
-> If double-click doesn't work, run `rune install` once to register the file association.
-
----
-
 ## CLI Reference
 
 | Command | Description |
@@ -362,9 +291,7 @@ Or double-click any `.rune` file in Finder.
 | `rune pipe <a> <b> [...] "prompt" [--auto]` | Chain agents |
 | `rune loop <doer> <reviewer> "prompt" [--until "..."] [--max-iterations N] [--auto]` | Self-correction loop |
 | `rune watch <file> --on <event> --prompt "..."` | Automated triggers |
-| `rune open <file>` | Desktop UI |
 | `rune list` | List agents in current directory |
-| `rune install` | Set up file associations & Quick Action |
 
 **Watch events:** `git-commit`, `git-push`, `file-change` (with `--glob`), `cron` (with `--interval`)
 

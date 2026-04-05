@@ -1,8 +1,8 @@
 {
   "name": "openrune",
-  "version": "1.1.2",
+  "version": "2.0.0",
   "description": "Persistent AI agents for Claude Code — build once, run forever.",
-  "keywords": ["ai", "agent", "claude", "desktop", "electron", "mcp", "claude-code", "toolkit", "automation"],
+  "keywords": ["ai", "agent", "claude", "claude-code", "cli", "toolkit", "automation"],
   "repository": {
     "type": "git",
     "url": "https://github.com/gilhyun/Rune.git"
@@ -10,48 +10,18 @@
   "homepage": "https://github.com/gilhyun/Rune",
   "license": "MIT",
   "author": "gilhyun",
-  "main": "bootstrap.js",
+  "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js"
   },
   "bin": {
     "rune": "bin/rune.js"
   },
-  "scripts": {
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "build:main": "esbuild src/main.ts --bundle --platform=node --outfile=dist/main.js --external:electron --external:node-pty && esbuild src/preload.ts --bundle --platform=node --outfile=dist/preload.js --external:electron && esbuild channel/rune-channel.ts --bundle --platform=node --outfile=dist/rune-channel.js",
-    "build:renderer": "cd renderer && npx vite build",
-    "build": "npm run build:main && npm run build:renderer",
-    "postinstall": "node bin/rune.js install",
-    "start": "npm run build && electron .",
-    "dev": "npm run build && electron ."
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@types/ws": "^8.18.1",
-    "electron-builder": "^25.0.0",
-    "typescript": "^5.7.0"
-  },
-  "dependencies": {
-    "@electron/rebuild": "^3.7.1",
-    "@modelcontextprotocol/sdk": "^1.27.1",
-    "@tailwindcss/vite": "^4.2.2",
-    "@vitejs/plugin-react": "^6.0.1",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
-    "clsx": "^2.1.1",
-    "electron": "^28.3.3",
-    "esbuild": "^0.27.4",
-    "lucide-react": "^0.577.0",
-    "node-pty": "^1.1.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "sonner": "^2.0.7",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.2",
-    "vite": "^8.0.1"
-  }
+  "files": [
+    "bin",
+    "lib",
+    "LICENSE",
+    "README.md",
+    "README.ko.md"
+  ]
 }

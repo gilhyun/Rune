@@ -19,10 +19,6 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license" />
 </p>
 
-<p align="center">
-  <img src="screenshot-chatting-ui.png" width="800" alt="Rune 데스크톱 UI — 4개 에이전트 협업" />
-</p>
-
 ---
 
 ## 사전 준비
@@ -35,7 +31,7 @@ npm install -g @anthropic-ai/claude-code
 claude                                       # 로그인이 안 되어 있다면 실행
 ```
 
-> **Rune의 작동 방식:** Rune은 Claude Code의 커스텀 채널(현재 베타)을 사용하여 에이전트 기능을 확장합니다. Claude API에 직접 접근하거나 인증을 처리하지 않으며, 모든 실행은 공식 Claude Code CLI를 통해 이루어집니다.
+> **Rune의 작동 방식:** Rune은 각 에이전트 호출 시 Claude Code를 서브프로세스로 실행합니다. Claude API에 직접 접근하거나 인증을 처리하지 않으며, 모든 실행은 공식 Claude Code CLI를 통해 이루어집니다.
 
 > **사용량:** Rune은 사용자의 Claude Code CLI 세션을 통해 실행됩니다. 사용량은 일반 Claude Code 구독에서 차감됩니다.
 
@@ -44,6 +40,10 @@ claude                                       # 로그인이 안 되어 있다면
 ```bash
 npm install -g openrune
 ```
+
+순수 Node.js CLI — Electron, GUI, postinstall 스크립트 없음.
+
+> 채팅 GUI를 찾으신다면 **[RuneChat](https://github.com/gilhyun/runechat)** 을 확인하세요 — `.rune` 에이전트를 위한 데스크톱 메신저 앱입니다.
 
 ---
 
@@ -282,75 +282,6 @@ const { finalOutput } = await rune.pipe(
 
 ---
 
-## 예제: 에이전트 기반 API 서버
-
-처음부터 에이전트가 구축한 서버까지의 전체 과정.
-
-### 1. 설치 및 에이전트 생성
-
-```bash
-npm install -g openrune
-mkdir my-project && cd my-project
-
-rune new architect --role "Software architect. Design system architecture concisely."
-rune new coder --role "Backend developer. Implement code based on the given plan."
-rune new reviewer --role "Code reviewer. Review for bugs and security issues."
-```
-
-### 2. 에이전트가 협업하여 서버 구축
-
-```bash
-rune pipe architect.rune coder.rune "Design and build an Express server with POST /review endpoint that uses require('openrune') to load reviewer.rune and send the prompt. Run npm init -y and npm install express openrune." --auto
-```
-
-architect가 아키텍처 설계 → coder가 `server.js` 작성, `npm init` 실행, 의존성 설치.
-
-### 3. 서버 시작
-
-```bash
-node server.js
-```
-
-### 4. API로 에이전트 호출
-
-```bash
-curl -X POST http://localhost:3000/review \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Review this project"}'
-```
-
-reviewer 에이전트가 프로젝트를 분석하고 전체 코드 리뷰를 반환합니다.
-
-### 5. 데스크톱 UI 열기
-
-```bash
-rune open reviewer.rune
-```
-
-API 호출의 대화 히스토리가 이미 있습니다 — CLI, API, GUI 간에 컨텍스트가 유지됩니다.
-
----
-
-## 데스크톱 UI
-
-Rune은 대화형 채팅을 위한 선택적 데스크톱 앱을 포함합니다.
-
-```bash
-rune open reviewer.rune
-```
-
-또는 Finder에서 `.rune` 파일을 더블 클릭하세요.
-
-<p align="center">
-  <img src="screenshot-chatting-ui.png" width="800" alt="Rune 데스크톱 UI" />
-</p>
-
-- **실시간 활동** — 도구 호출, 결과, 권한 요청을 실시간으로 확인.
-- **내장 터미널** — Claude Code 출력과 사용자 명령어를 나란히.
-- **우클릭으로 생성** — macOS Quick Action으로 Finder에서 에이전트 생성.
-
-> 더블 클릭이 작동하지 않으면 `rune install`을 한 번 실행하여 파일 연결을 등록하세요.
-
 ---
 
 ## CLI 레퍼런스
@@ -362,9 +293,7 @@ rune open reviewer.rune
 | `rune pipe <a> <b> [...] "prompt" [--auto]` | 에이전트 체이닝 |
 | `rune loop <doer> <reviewer> "prompt" [--until "..."] [--max-iterations N] [--auto]` | 자기 수정 루프 |
 | `rune watch <file> --on <event> --prompt "..."` | 자동화 트리거 |
-| `rune open <file>` | 데스크톱 UI |
 | `rune list` | 현재 디렉토리의 에이전트 목록 |
-| `rune install` | 파일 연결 및 Quick Action 설정 |
 
 **Watch 이벤트:** `git-commit`, `git-push`, `file-change` (`--glob` 사용), `cron` (`--interval` 사용)
 

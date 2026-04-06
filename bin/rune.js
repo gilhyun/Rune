@@ -19,6 +19,8 @@ switch (command) {
   case 'loop':    return loopRunes(args)
   case 'watch':   return watchRune(args[0], args.slice(1))
   case 'list':    return listRunes()
+  case 'backup':  return backupRune(args[0], args.slice(1))
+  case 'inbound': return inboundRune(args[0], args.slice(1))
   case 'open':
     console.log('  ℹ️  `rune open` has been removed from the CLI.')
     console.log('     For a GUI, use RuneChat: https://github.com/gilhyun/runechat')
@@ -982,6 +984,215 @@ function listRunes() {
   }
 }
 
+// ── backup ──────────────────────────────────────
+
+function backupRune(file, restArgs) {
+  if (!file) {
+    console.log('Usage: rune backup <file.rune> [--format md|json|rune] [--output <path>]')
+    console.log('')
+    console.log('Formats:')
+    console.log('  md     Markdown — readable conversation export (default)')
+    console.log('  json   JSON — full data including memory and metadata')
+    console.log('  rune   Clone — timestamped copy of the .rune file')
+    console.log('')
+    console.log('Examples:')
+    console.log('  rune backup reviewer.rune')
+    console.log('  rune backup reviewer.rune --format json')
+    console.log('  rune backup reviewer.rune --format rune --output backups/')
+    process.exit(1)
+  }
+
+  const filePath = path.resolve(process.cwd(), file)
+  if (!fs.existsSync(filePath)) {
+    console.error(`  ❌ File not found: ${filePath}`)
+    process.exit(1)
+  }
+
+  // Parse args
+  let format = 'md'
+  let outputPath = ''
+  for (let i = 0; i < restArgs.length; i++) {
+    if (restArgs[i] === '--format' && restArgs[i + 1]) { format = restArgs[++i] }
+    else if (restArgs[i] === '--output' && restArgs[i + 1]) { outputPath = restArgs[++i] }
+  }
+
+  const rune = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+  const baseName = rune.name || path.basename(file, '.rune')
+
+  let outFile, content
+
+  if (format === 'md') {
+    outFile = `${baseName}-backup-${ts}.md`
+    const lines = []
+    lines.push(`# ${rune.name} — Conversation Backup`)
+    lines.push(``)
+    lines.push(`- **Role**: ${rune.role || 'N/A'}`)
+    lines.push(`- **Created**: ${rune.createdAt || 'N/A'}`)
+    lines.push(`- **Exported**: ${new Date().toISOString()}`)
+    lines.push(`- **Messages**: ${(rune.history || []).length}`)
+    lines.push(``)
+
+    if (rune.memory && rune.memory.length > 0) {
+      lines.push(`## Memory`)
+      lines.push(``)
+      rune.memory.forEach((m, i) => lines.push(`${i + 1}. ${m}`))
+      lines.push(``)
+    }
+
+    if (rune.history && rune.history.length > 0) {
+      lines.push(`## Conversation`)
+      lines.push(``)
+      for (const msg of rune.history) {
+        const who = msg.role === 'user' ? '**User**' : '**Assistant**'
+        const time = msg.ts ? new Date(msg.ts).toLocaleString() : ''
+        lines.push(`### ${who} ${time ? `(${time})` : ''}`)
+        lines.push(``)
+        lines.push(msg.text)
+        lines.push(``)
+        lines.push(`---`)
+        lines.push(``)
+      }
+    }
+
+    content = lines.join('\n')
+
+  } else if (format === 'json') {
+    outFile = `${baseName}-backup-${ts}.json`
+    content = JSON.stringify({
+      ...rune,
+      _backup: {
+        exportedAt: new Date().toISOString(),
+        sourceFile: filePath,
+        messageCount: (rune.history || []).length,
+      }
+    }, null, 2)
+
+  } else if (format === 'rune') {
+    outFile = `${baseName}-backup-${ts}.rune`
+    content = JSON.stringify(rune, null, 2)
+
+  } else {
+    console.error(`  ❌ Unknown format: ${format}. Use: md, json, rune`)
+    process.exit(1)
+  }
+
+  // Resolve output path
+  if (outputPath) {
+    const resolved = path.resolve(process.cwd(), outputPath)
+    if (fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
+      outFile = path.join(resolved, outFile)
+    } else {
+      // Treat as file path
+      outFile = resolved
+    }
+  } else {
+    outFile = path.resolve(process.cwd(), outFile)
+  }
+
+  // Ensure parent dir exists
+  const outDir = path.dirname(outFile)
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true })
+
+  fs.writeFileSync(outFile, content)
+
+  const stats = {
+    messages: (rune.history || []).length,
+    memory: (rune.memory || []).length,
+    size: fs.statSync(outFile).size,
+  }
+
+  console.log(`📦 Backup created`)
+  console.log(`   Agent: ${rune.name} (${rune.role || 'N/A'})`)
+  console.log(`   Format: ${format}`)
+  console.log(`   Messages: ${stats.messages}, Memory: ${stats.memory}`)
+  console.log(`   Size: ${(stats.size / 1024).toFixed(1)} KB`)
+  console.log(`   Output: ${outFile}`)
+}
+
+
+// ── inbound ─────────────────────────────────────
+
+function inboundRune(file, restArgs) {
+  if (!file) {
+    console.log('Usage: rune inbound <file.rune> "message" [--run] [--auto] [--source <name>]')
+    console.log('')
+    console.log('Options:')
+    console.log('  --run              Send the message and immediately run the agent')
+    console.log('  --auto             Run in auto mode (agent can write files, run commands)')
+    console.log('  --source <name>    Label the message source (default: "external")')
+    console.log('')
+    console.log('Without --run, the message is queued in history for the next rune run.')
+    console.log('')
+    console.log('Examples:')
+    console.log('  rune inbound reviewer.rune "PR #42 is ready for review" --run')
+    console.log('  rune inbound coder.rune "Build failed, fix it" --run --auto')
+    console.log('  rune inbound monitor.rune "Deploy complete" --source deploy-bot')
+    console.log('  echo "Error log..." | rune inbound coder.rune --run --auto')
+    process.exit(1)
+  }
+
+  const filePath = path.resolve(process.cwd(), file)
+  if (!fs.existsSync(filePath)) {
+    console.error(`  ❌ File not found: ${filePath}`)
+    process.exit(1)
+  }
+
+  // Parse args
+  let message = ''
+  let shouldRun = false
+  let autoMode = false
+  let source = 'external'
+
+  for (let i = 0; i < restArgs.length; i++) {
+    if (restArgs[i] === '--run') { shouldRun = true }
+    else if (restArgs[i] === '--auto') { autoMode = true; shouldRun = true }
+    else if (restArgs[i] === '--source' && restArgs[i + 1]) { source = restArgs[++i] }
+    else if (!message) { message = restArgs[i] }
+  }
+
+  // Read from stdin if no message
+  if (!message && process.stdin.isTTY === false) {
+    message = fs.readFileSync('/dev/stdin', 'utf-8').trim()
+  }
+
+  if (!message) {
+    console.error('  ❌ No message provided. Pass a message string or pipe via stdin.')
+    process.exit(1)
+  }
+
+  const rune = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+
+  // Add message to history with source metadata
+  rune.history = rune.history || []
+  rune.history.push({
+    role: 'user',
+    text: message,
+    ts: Date.now(),
+    source,
+  })
+  fs.writeFileSync(filePath, JSON.stringify(rune, null, 2))
+
+  console.log(`📨 Message delivered to ${rune.name}`)
+  console.log(`   From: ${source}`)
+  console.log(`   Text: ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`)
+
+  if (!shouldRun) {
+    console.log(`   Status: Queued (will be seen on next rune run)`)
+    console.log(`\n   To run now: rune run ${file} "continue"`)
+    return
+  }
+
+  // Run the agent with the inbound message
+  console.log(`   Status: Running agent...\n`)
+
+  const runArgs = [file, message]
+  if (autoMode) runArgs.push('--auto')
+
+  return runRune(file, runArgs.slice(1))
+}
+
+
 // ── help ─────────────────────────────────────────
 
 function showHelp() {
@@ -1006,6 +1217,13 @@ Usage:
     --prompt "..."          Prompt to send when triggered
     --glob "*.ts"           File pattern (for file-change)
     --interval 5m           Schedule interval (for cron: 30s, 5m, 1h)
+  rune backup <file.rune>   Export agent conversation/data
+    --format md|json|rune   Output format (default: md)
+    --output <path>         Output file or directory
+  rune inbound <file.rune> "msg"   Send external message to agent
+    --run                   Immediately run the agent after delivery
+    --auto                  Run in auto mode (implies --run)
+    --source <name>         Label the message source (default: "external")
   rune list                 List .rune files in current directory
   rune help                 Show this help
 
@@ -1015,6 +1233,9 @@ Examples:
   rune pipe coder.rune reviewer.rune "Implement a login page"
   rune loop coder.rune reviewer.rune "Build a REST API" --until "no critical issues" --max-iterations 3 --auto
   rune watch reviewer.rune --on git-commit --prompt "Review this commit"
+  rune backup reviewer.rune --format md
+  rune inbound coder.rune "Build failed, fix it" --run --auto
+  echo "Error log..." | rune inbound coder.rune --run --auto
   echo "Fix the bug in auth.ts" | rune run backend.rune
 
 Looking for a GUI? Check out RuneChat: https://github.com/gilhyun/runechat

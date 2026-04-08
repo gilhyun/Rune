@@ -79,20 +79,33 @@ Claude Code CLI (이미 로그인된 세션)
 
 ---
 
-## 사전 준비
+## 설치
 
+### 방법 A: Claude Code 플러그인 (추천)
+
+Claude Code 플러그인 마켓플레이스에서 바로 설치:
+
+```
+/plugin                          # 플러그인 매니저 열기
+→ Marketplaces → gilhyun/Rune   # 마켓플레이스 추가 (최초 1회)
+→ Install openrune               # 플러그인 설치
+```
+
+설치하면 Claude Code 안에서 Rune 스킬과 커맨드를 바로 사용할 수 있습니다.
+
+### 방법 B: npm (독립 CLI)
+
+```bash
+npm install -g openrune
+```
+
+**사전 준비:**
 - **Node.js** 18+
-- **Claude Code CLI** 설치 및 로그인 — Rune은 모든 에이전트 실행에 Claude Code를 사용합니다
+- **Claude Code CLI** 설치 및 로그인
 
 ```bash
 npm install -g @anthropic-ai/claude-code
 claude                                       # 로그인이 안 되어 있다면 실행
-```
-
-## 설치
-
-```bash
-npm install -g openrune
 ```
 
 ---
@@ -294,6 +307,30 @@ rune watch linter.rune --on file-change --glob "src/**/*.ts" --prompt "Check for
 rune watch monitor.rune --on cron --interval 5m --prompt "Check server health"
 ```
 
+### 백업 & 내보내기
+
+에이전트의 대화, 메모리, 메타데이터를 내보냅니다:
+
+```bash
+rune backup reviewer.rune                      # → 마크다운 (기본)
+rune backup reviewer.rune --format json        # → JSON
+rune backup reviewer.rune --format rune        # → 타임스탬프 .rune 복사본
+rune backup reviewer.rune --output ./backups   # → 특정 디렉토리에 저장
+```
+
+### 인바운드 메시지
+
+외부에서 에이전트에 메시지를 주입합니다 — 웹훅, CI, 스크립트 연동에 유용:
+
+```bash
+rune inbound agent.rune "배포 완료"                          # 큐에 넣기만
+rune inbound agent.rune "에러 발생" --run --auto             # 넣고 바로 실행
+rune inbound agent.rune "webhook data" --source api          # 출처 태깅
+
+# stdin에서 파이프
+echo "빌드 로그..." | rune inbound agent.rune --run
+```
+
 ### Node.js API
 
 자신의 코드에서 에이전트를 사용하세요. 각 `.send()` 호출은 Claude Code 프로세스를 생성하므로, 머신에 Claude Code CLI가 설치되고 로그인되어 있어야 합니다.
@@ -309,9 +346,13 @@ const { finalOutput } = await rune.pipe(
   ['architect.rune', 'coder.rune'],
   'Build a REST API'
 )
-```
 
----
+// 백업
+const { content, filename } = rune.backup('reviewer.rune', { format: 'md' })
+
+// 인바운드
+rune.inbound('agent.rune', '외부 메시지', { source: 'webhook' })
+```
 
 ---
 
@@ -324,19 +365,11 @@ const { finalOutput } = await rune.pipe(
 | `rune pipe <a> <b> [...] "prompt" [--auto]` | 에이전트 체이닝 |
 | `rune loop <doer> <reviewer> "prompt" [--until "..."] [--max-iterations N] [--auto]` | 자기 수정 루프 |
 | `rune watch <file> --on <event> --prompt "..."` | 자동화 트리거 |
+| `rune backup <file> [--format md\|json\|rune] [--output dir]` | 에이전트 데이터 내보내기 |
+| `rune inbound <file> "msg" [--run] [--auto] [--source name]` | 외부 메시지 주입 |
 | `rune list` | 현재 디렉토리의 에이전트 목록 |
 
 **Watch 이벤트:** `git-commit`, `git-push`, `file-change` (`--glob` 사용), `cron` (`--interval` 사용)
-
----
-
-## 플랫폼 지원
-
-| 플랫폼 | 상태 |
-|--------|------|
-| macOS | 지원 |
-| Windows | 지원 |
-| Linux | 지원 |
 
 ---
 

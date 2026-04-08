@@ -79,20 +79,33 @@ Key points:
 
 ---
 
-## Prerequisites
+## Install
 
+### Option A: Claude Code Plugin (recommended)
+
+Install directly from Claude Code's plugin marketplace:
+
+```
+/plugin                          # open plugin manager
+→ Marketplaces → gilhyun/Rune   # add marketplace (one-time)
+→ Install openrune               # install the plugin
+```
+
+Once installed, Rune skills and commands are available inside Claude Code without any extra setup.
+
+### Option B: npm (standalone CLI)
+
+```bash
+npm install -g openrune
+```
+
+**Prerequisites:**
 - **Node.js** 18+
-- **Claude Code CLI** installed and logged in — Rune uses Claude Code under the hood for all agent execution
+- **Claude Code CLI** installed and logged in
 
 ```bash
 npm install -g @anthropic-ai/claude-code
 claude                                       # login if you haven't
-```
-
-## Install
-
-```bash
-npm install -g openrune
 ```
 
 ---
@@ -294,6 +307,30 @@ rune watch linter.rune --on file-change --glob "src/**/*.ts" --prompt "Check for
 rune watch monitor.rune --on cron --interval 5m --prompt "Check server health"
 ```
 
+### Backup & export
+
+Export an agent's conversation, memory, and metadata:
+
+```bash
+rune backup reviewer.rune                      # → markdown (default)
+rune backup reviewer.rune --format json        # → JSON
+rune backup reviewer.rune --format rune        # → timestamped .rune copy
+rune backup reviewer.rune --output ./backups   # → specific directory
+```
+
+### Inbound messages
+
+Inject external messages into an agent — great for webhooks, CI, or scripts:
+
+```bash
+rune inbound agent.rune "Deploy completed"                  # queue only
+rune inbound agent.rune "Error occurred" --run --auto       # queue + run immediately
+rune inbound agent.rune "webhook data" --source api         # tag the source
+
+# Pipe from stdin
+echo "build log..." | rune inbound agent.rune --run
+```
+
 ### Node.js API
 
 Use agents in your own code. Each `.send()` call spawns a Claude Code process, so Claude Code CLI must be installed and logged in on the machine.
@@ -309,6 +346,12 @@ const { finalOutput } = await rune.pipe(
   ['architect.rune', 'coder.rune'],
   'Build a REST API'
 )
+
+// Backup
+const { content, filename } = rune.backup('reviewer.rune', { format: 'md' })
+
+// Inbound
+rune.inbound('agent.rune', 'External message', { source: 'webhook' })
 ```
 
 ---
@@ -322,19 +365,11 @@ const { finalOutput } = await rune.pipe(
 | `rune pipe <a> <b> [...] "prompt" [--auto]` | Chain agents |
 | `rune loop <doer> <reviewer> "prompt" [--until "..."] [--max-iterations N] [--auto]` | Self-correction loop |
 | `rune watch <file> --on <event> --prompt "..."` | Automated triggers |
+| `rune backup <file> [--format md\|json\|rune] [--output dir]` | Export agent data |
+| `rune inbound <file> "msg" [--run] [--auto] [--source name]` | Inject external message |
 | `rune list` | List agents in current directory |
 
 **Watch events:** `git-commit`, `git-push`, `file-change` (with `--glob`), `cron` (with `--interval`)
-
----
-
-## Platform Support
-
-| Platform | Status |
-|----------|--------|
-| macOS | Supported |
-| Windows | Supported |
-| Linux | Supported |
 
 ---
 

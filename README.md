@@ -81,7 +81,7 @@ Key points:
 
 ## Install
 
-### Option A: Claude Code Plugin (recommended)
+### Option A: Claude Code Plugin
 
 Install directly from Claude Code's plugin marketplace:
 
@@ -91,13 +91,19 @@ Install directly from Claude Code's plugin marketplace:
 → Install openrune               # install the plugin
 ```
 
-Once installed, Rune skills and commands are available inside Claude Code without any extra setup.
+The plugin registers a **Rune MCP channel** inside Claude Code. This lets you interact with Rune agents directly in your Claude Code conversation — Claude can create, run, and manage `.rune` agents on your behalf without you ever leaving the editor.
 
-### Option B: npm (standalone CLI)
+> **What the plugin gives you:** Claude Code gains awareness of the Rune agent system and can use it as a tool during conversations. You don't need to memorize CLI commands — just ask Claude to "create a reviewer agent" or "run the architect agent on this code."
+>
+> **What the plugin does NOT give you:** The `rune` CLI command in your terminal. For terminal usage, pipelines in CI/CD, or scripting, install via npm (Option B).
+
+### Option B: npm (full CLI)
 
 ```bash
 npm install -g openrune
 ```
+
+This gives you the `rune` command in your terminal — everything in the [CLI Reference](#cli-reference) below.
 
 **Prerequisites:**
 - **Node.js** 18+
@@ -107,6 +113,8 @@ npm install -g openrune
 npm install -g @anthropic-ai/claude-code
 claude                                       # login if you haven't
 ```
+
+> **Tip:** You can use both options together. Install the plugin for in-editor convenience, and npm for terminal/CI workflows.
 
 ---
 

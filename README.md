@@ -81,24 +81,6 @@ Key points:
 
 ## Install
 
-### Option A: Claude Code Plugin
-
-Install directly from Claude Code's plugin marketplace:
-
-```
-/plugin                          # open plugin manager
-→ Marketplaces → gilhyun/Rune   # add marketplace (one-time)
-→ Install openrune               # install the plugin
-```
-
-The plugin registers a **Rune MCP channel** inside Claude Code. This lets you interact with Rune agents directly in your Claude Code conversation — Claude can create, run, and manage `.rune` agents on your behalf without you ever leaving the editor.
-
-> **What the plugin gives you:** Claude Code gains awareness of the Rune agent system and can use it as a tool during conversations. You don't need to memorize CLI commands — just ask Claude to "create a reviewer agent" or "run the architect agent on this code."
->
-> **What the plugin does NOT give you:** The `rune` CLI command in your terminal. For terminal usage, pipelines in CI/CD, or scripting, install via npm (Option B).
-
-### Option B: npm (full CLI)
-
 ```bash
 npm install -g openrune
 ```
@@ -113,8 +95,6 @@ This gives you the `rune` command in your terminal — everything in the [CLI Re
 npm install -g @anthropic-ai/claude-code
 claude                                       # login if you haven't
 ```
-
-> **Tip:** You can use both options together. Install the plugin for in-editor convenience, and npm for terminal/CI workflows.
 
 ---
 

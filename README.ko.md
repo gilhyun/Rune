@@ -81,24 +81,6 @@ Claude Code CLI (이미 로그인된 세션)
 
 ## 설치
 
-### 방법 A: Claude Code 플러그인
-
-Claude Code 플러그인 마켓플레이스에서 바로 설치:
-
-```
-/plugin                          # 플러그인 매니저 열기
-→ Marketplaces → gilhyun/Rune   # 마켓플레이스 추가 (최초 1회)
-→ Install openrune               # 플러그인 설치
-```
-
-플러그인은 Claude Code 안에 **Rune MCP 채널**을 등록합니다. 에디터를 떠나지 않고 Claude Code 대화 안에서 바로 `.rune` 에이전트를 만들고, 실행하고, 관리할 수 있습니다.
-
-> **플러그인으로 할 수 있는 것:** Claude Code가 Rune 에이전트 시스템을 도구로 인식합니다. CLI 명령어를 외울 필요 없이 Claude에게 "리뷰어 에이전트 만들어줘" 또는 "아키텍트 에이전트로 이 코드 분석해줘"라고 말하면 됩니다.
->
-> **플러그인으로 할 수 없는 것:** 터미널에서 `rune` CLI 명령어를 직접 사용하는 것. 터미널 사용, CI/CD 파이프라인, 스크립팅이 필요하면 npm으로 설치하세요 (방법 B).
-
-### 방법 B: npm (전체 CLI)
-
 ```bash
 npm install -g openrune
 ```
@@ -113,8 +95,6 @@ npm install -g openrune
 npm install -g @anthropic-ai/claude-code
 claude                                       # 로그인이 안 되어 있다면 실행
 ```
-
-> **팁:** 두 방법을 함께 사용할 수도 있습니다. 에디터 안에서 편하게 쓰려면 플러그인, 터미널/CI 작업에는 npm을 설치하세요.
 
 ---
 
